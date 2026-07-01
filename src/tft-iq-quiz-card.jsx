@@ -20,6 +20,14 @@ function getUserId() {
   } catch { return "anon"; } // 아티팩트 등 localStorage 불가 환경
 }
 
+function unitIcon(id) {
+  if (!id) return null;
+  const low = id.toLowerCase();                    // "tft17_karma"
+  const setNum = low.match(/^tft(\d+)_/)?.[1];     // "17"
+  if (!setNum) return null;
+  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${low}_square.tft_set${setNum}.png`;
+}
+
 /* --- 디자인 토큰 (코스믹 아케이드) --- */
 const T = {
   bg: "#0B0918", bg2: "#130F26", card1: "#1C1638", card2: "#251C49",
@@ -245,8 +253,12 @@ function QuizCard({ current, chosen, reveal, onPick, onNext }) {
         <div style={{ position: "relative", width: 92, height: 92 }}>
           <div style={{ position: "absolute", inset: -3, clipPath: HEX, background: `linear-gradient(135deg, ${T.violet}, ${T.gold})` }} />
           <div style={{ position: "absolute", inset: 0, clipPath: HEX, background: `linear-gradient(160deg, ${T.card2}, ${T.bg2})`,
-            display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 34 }}>
-            {initial(current.carry.name)}
+            display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 34, overflow: "hidden" }}>
+            {unitIcon(current.carry.id) ? (
+              <img src={unitIcon(current.carry.id)} alt="" width={92} height={92}
+                style={{ objectFit: "cover" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentNode.textContent = initial(current.carry.name); }} />
+            ) : initial(current.carry.name)}
           </div>
         </div>
         <div style={{ marginTop: 14, fontWeight: 800, fontSize: 22 }}>{current.carry.name}</div>
