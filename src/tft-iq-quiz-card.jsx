@@ -78,7 +78,7 @@ export default function App() {
       if (data.status === "all_solved") { setAllSolved(true); setLoading(false); return; }
       const p = data.puzzle;
       const carry = p.prompt?.carry ?? { name: "?" };
-      const options = (p.options ?? []).map((o) => ({ id: o.id, name: o.name }));
+      const options = (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon }));
       const hidden = p.stats?.hidden_pick
         ? { name: p.stats.hidden_pick.name, avg: p.stats.hidden_pick.avg_placement, n: p.stats.hidden_pick.sample_size }
         : null;
@@ -271,8 +271,12 @@ function QuizCard({ current, chosen, reveal, onPick, onNext }) {
               onMouseDown={(e) => !reveal && (e.currentTarget.style.transform = "scale(0.98)")}
               onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}>
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ width: 12, height: 12, clipPath: HEX, background: reveal && st?.is_best ? T.gold : T.violet,
-                  opacity: reveal && !st?.is_best && name !== chosen ? 0.4 : 1 }} />
+                {opt.icon ? (
+                  <img src={opt.icon} alt="" width={28} height={28}
+                    style={{ borderRadius: 6, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1px solid ${T.line}` }} />
+                ) : (
+                  <span style={{ width: 12, height: 12, clipPath: HEX, background: reveal && st?.is_best ? T.gold : T.violet }} />
+                )}
                 {name}
               </span>
               {reveal && st?.avg != null && (
