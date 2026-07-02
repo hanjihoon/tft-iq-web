@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 /* ============================================================
    TFT IQ — 통합 퀴즈 (홈 모드 선택 + 아이템 BIS + 덱 완성)
@@ -136,7 +137,12 @@ export default function App() {
 
   // 홈 화면
   if (!mode) {
-    return <Home onSelect={(m) => { setTab(m); setMode(m); }} />;
+    return (
+      <>
+        <Home onSelect={(m) => { setTab(m); setMode(m); }} />
+        <Analytics />
+      </>
+    );
   }
 
   return (
@@ -199,6 +205,7 @@ export default function App() {
           <ItemCard current={current} chosen={chosen} reveal={reveal} onPick={submit} onNext={() => loadNext(tab)} />
         )}
       </div>
+      <Analytics />
     </div>
   );
 }
