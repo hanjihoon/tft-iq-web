@@ -30,12 +30,19 @@ const TABS = [
   { key: "deck_complete", label: "덱 완성" },
 ];
 
+// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). [폴더, 파일명base]
+const ICON_OVERRIDES = {
+  tft17_rhaast: ["tft17_rhaast", "tft17_kayn_slay"], // 라스트=케인 변신, 폴더는 rhaast
+  // 안 뜨는 유닛 발견 시 여기 추가: tft17_xxx: ["폴더", "파일base"]
+};
+
 function unitIcon(id) {
   if (!id) return null;
   const low = id.toLowerCase();
   const m = low.match(/^tft(\d+)_/);
   if (!m) return null;
-  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${low}_square.tft_set${m[1]}.png`;
+  const [dir, base] = ICON_OVERRIDES[low] || [low, low];
+  return `https://raw.communitydragon.org/latest/game/assets/characters/${dir}/hud/${base}_square.tft_set${m[1]}.png`;
 }
 
 export default function App() {
