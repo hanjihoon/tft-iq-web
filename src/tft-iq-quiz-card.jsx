@@ -97,6 +97,7 @@ export default function App() {
           id: p.id, type, patch: p.patch,
           deckLabel: p.prompt?.deck_label ?? "?",
           shown: p.prompt?.shown_units ?? [],
+          synergies: p.prompt?.synergies ?? [],
           options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
           deckAvg: p.stats?.deck_avg, deckGames: p.stats?.deck_games,
         };
@@ -569,6 +570,11 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
 
 function DeckCard({ current, chosen, reveal, onPick, onNext }) {
   const best = reveal?.stats?.find((s) => s.is_best);
+  const [hintOpen, setHintOpen] = useState(false);
+  // 문제 바뀌면 힌트 다시 접기
+  useEffect(() => { setHintOpen(false); }, [current.id]);
+  const synergies = current.synergies ?? [];
+
   return (
     <CardShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -587,6 +593,31 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
         )}
         <div style={{ marginTop: 6, fontSize: 13, color: T.muted }}>빠진 핵심 유닛은?</div>
       </div>
+
+      {/* 시너지 힌트 (드롭다운, 접힘 기본 — 난이도 보존) */}
+      {synergies.length > 0 && (
+        <div style={{ marginTop: 12, textAlign: "center" }}>
+          <button onClick={() => setHintOpen((v) => !v)}
+            style={{ appearance: "none", cursor: "pointer", background: "transparent",
+              border: `1px solid ${T.line}`, borderRadius: 999, color: T.muted,
+              fontFamily: T.fontKR, fontSize: 11, padding: "5px 12px",
+              display: "inline-flex", alignItems: "center", gap: 5 }}>
+            💡 시너지 힌트 {hintOpen ? "▲" : "▼"}
+          </button>
+          {hintOpen && (
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6 }}>
+              {synergies.map((s) => (
+                <span key={s.trait} style={{ fontSize: 11, color: T.violet, fontWeight: 600,
+                  border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px",
+                  background: "rgba(139,108,255,0.08)" }}>
+                  {s.trait} {s.count}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 16 }}>
         {current.shown.map((u) => <UnitHex key={u.id} unit={u} />)}
         <UnitHex unit={reveal && best ? current.options.find((o) => o.id === best.id) : null} highlight />
