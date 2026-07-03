@@ -30,24 +30,19 @@ const TABS = [
   { key: "deck_complete", label: "덱 완성" },
 ];
 
-// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). [폴더, 파일명base]
-const ICON_OVERRIDES = {
-  tft17_rhaast: ["tft17_rhaast", "tft17_kayn_slay"], // 라스트=케인 변신, 폴더는 rhaast
-  // 안 뜨는 유닛 발견 시 여기 추가: tft17_xxx: ["폴더", "파일base"]
-};
-
 function unitIcon(id) {
   if (!id) return null;
   const low = id.toLowerCase();
   const m = low.match(/^tft(\d+)_/);
   if (!m) return null;
-  const [dir, base] = ICON_OVERRIDES[low] || [low, low];
-  return `https://raw.communitydragon.org/latest/game/assets/characters/${dir}/hud/${base}_square.tft_set${m[1]}.png`;
+  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${low}_square.tft_set${m[1]}.png`;
 }
 
 export default function App() {
   const [mode, setMode] = useState(null); // null=홈, 값=퀴즈
   const [tab, setTab] = useState("item_combine");
+  const [reviewMode, setReviewMode] = useState(false); // 복습 모드 여부
+  const [reviewCounts, setReviewCounts] = useState({}); // {item_combine:N, deck_complete:M}
   const [queue, setQueue] = useState([]);
   const [reveal, setReveal] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -61,12 +56,14 @@ export default function App() {
 
   const current = queue[0];
 
-  const loadNext = useCallback(async (forType) => {
+  const loadNext = useCallback(async (forType, isReview) => {
     const t = forType || tab;
+    const rev = isReview ?? reviewMode;
     setReveal(null); setChosen(null); setAllSolved(false); setLoading(true);
     if (USE_MOCK) { setLoading(false); return; }
     try {
-      const r = await fetch(`${API_BASE}/api/quiz/next?type=${t}`, {
+      const modeParam = rev ? "&mode=review" : "";
+      const r = await fetch(`${API_BASE}/api/quiz/next?type=${t}${modeParam}`, {
         headers: { "X-User-Id": getUserId() },
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -99,20 +96,31 @@ export default function App() {
       setError("서버에 연결할 수 없어요. 잠시 후 다시 시도하세요.");
       setLoading(false);
     }
-  }, [tab]);
+  }, [tab, reviewMode]);
 
   useEffect(() => {
     if (!mode) return;
     setStreak(0); setSolved(0);
-    loadNext(tab);
+    loadNext(tab, reviewMode);
     /* eslint-disable-next-line */
-  }, [tab, mode]);
+  }, [tab, mode, reviewMode]);
 
   useEffect(() => {
     if (!USE_MOCK) {
       fetch(`${API_BASE}/api/meta/info`).then((r) => r.json()).then(setMeta).catch(() => {});
     }
   }, []);
+
+  // 복습 대상 개수 불러오기 (홈 진입 시, 채점 후)
+  const refreshReviewCounts = useCallback(() => {
+    if (USE_MOCK) return;
+    fetch(`${API_BASE}/api/quiz/review/count`, { headers: { "X-User-Id": getUserId() } })
+      .then((r) => r.json())
+      .then(setReviewCounts)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { refreshReviewCounts(); }, [refreshReviewCounts]);
 
   async function submit(optName, optId) {
     if (reveal) return;
@@ -139,11 +147,18 @@ export default function App() {
     setSolved((s) => s + 1);
     if (correct) setStreak((s) => { const n = s + 1; setBest((b) => Math.max(b, n)); return n; });
     else setStreak(0);
+    refreshReviewCounts(); // 복습 개수 갱신 (맞히면 줄고, 새로 틀리면 늚)
   }
 
   // 홈 화면
   if (!mode) {
-    return <Home onSelect={(m) => { setTab(m); setMode(m); }} />;
+    return (
+      <Home
+        reviewCounts={reviewCounts}
+        onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); }}
+        onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); }}
+      />
+    );
   }
 
   return (
@@ -163,6 +178,10 @@ export default function App() {
           <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 18, letterSpacing: "0.04em" }}>
             TFT <span style={{ color: T.gold }}>IQ</span>
           </div>
+          {reviewMode && (
+            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color: T.teal,
+              border: `1px solid ${T.teal}`, borderRadius: 999, padding: "2px 8px" }}>복습</span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 16, fontSize: 12, color: T.muted }}>
           <Stat label="연속" value={streak} accent={streak > 0 ? T.gold : T.muted} />
@@ -195,7 +214,7 @@ export default function App() {
 
       <div style={{ position: "relative", width: "100%", maxWidth: 380, marginTop: 14, flex: 1 }}>
         {allSolved ? (
-          <SolvedCard />
+          <SolvedCard reviewMode={reviewMode} onHome={() => setMode(null)} />
         ) : error ? (
           <ErrorCard msg={error} onRetry={() => loadNext(tab)} />
         ) : loading || !current ? (
@@ -210,7 +229,7 @@ export default function App() {
   );
 }
 
-function Home({ onSelect }) {
+function Home({ onSelect, onReview, reviewCounts }) {
   const modes = [
     { key: "item_combine", title: "아이템 BIS 퀴즈", desc: "캐리별 최적 아이템을 맞혀보세요", emoji: "⚔️" },
     { key: "deck_complete", title: "덱 완성 퀴즈", desc: "티어덱에서 빠진 핵심 유닛은?", emoji: "🧩" },
@@ -230,25 +249,40 @@ function Home({ onSelect }) {
       </div>
       <div style={{ fontSize: 15, color: T.muted, marginBottom: 28 }}>무엇을 연습할까요?</div>
       <div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", gap: 14 }}>
-        {modes.map((m) => (
-          <button key={m.key} onClick={() => onSelect(m.key)}
-            style={{ appearance: "none", cursor: "pointer", textAlign: "left",
-              borderRadius: 18, border: `1px solid ${T.line}`,
+        {modes.map((m) => {
+          const reviewN = reviewCounts?.[m.key] ?? 0;
+          return (
+            <div key={m.key} style={{ borderRadius: 18, border: `1px solid ${T.line}`, overflow: "hidden",
               background: `linear-gradient(160deg, ${T.card2}, ${T.card1})`,
-              padding: "20px 22px", color: T.text, transition: "transform .12s",
-              boxShadow: "0 16px 40px -16px rgba(0,0,0,0.6)" }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 26 }}>{m.emoji}</span>
-              <div>
-                <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 17 }}>{m.title}</div>
-                <div style={{ fontSize: 12.5, color: T.muted, marginTop: 3 }}>{m.desc}</div>
-              </div>
+              boxShadow: "0 16px 40px -16px rgba(0,0,0,0.6)" }}>
+              <button onClick={() => onSelect(m.key)}
+                style={{ width: "100%", appearance: "none", cursor: "pointer", textAlign: "left",
+                  border: "none", background: "transparent", padding: "20px 22px", color: T.text,
+                  transition: "transform .12s" }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 26 }}>{m.emoji}</span>
+                  <div>
+                    <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 17 }}>{m.title}</div>
+                    <div style={{ fontSize: 12.5, color: T.muted, marginTop: 3 }}>{m.desc}</div>
+                  </div>
+                </div>
+              </button>
+              {reviewN > 0 && (
+                <button onClick={() => onReview(m.key)}
+                  style={{ width: "100%", appearance: "none", cursor: "pointer",
+                    border: "none", borderTop: `1px solid ${T.line}`,
+                    background: "rgba(61,224,168,0.08)", color: T.teal,
+                    fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "11px",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  🔁 틀린 문제 {reviewN}개 복습하기 →
+                </button>
+              )}
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
       <div style={{ fontSize: 11, color: T.muted, marginTop: 26, textAlign: "center", lineHeight: 1.6 }}>
         언제든 상단 탭이나 &larr; 버튼으로 바꿀 수 있어요
@@ -459,13 +493,24 @@ function NextButton({ onNext }) {
 function SkeletonCard() {
   return <CardShell><div style={{ margin: "auto", color: T.muted, fontSize: 14 }}>불러오는 중…</div></CardShell>;
 }
-function SolvedCard() {
+function SolvedCard({ reviewMode, onHome }) {
   return (
     <CardShell>
       <div style={{ margin: "auto", textAlign: "center" }}>
         <div style={{ width: 44, height: 44, clipPath: HEX, background: `linear-gradient(135deg, ${T.violet}, ${T.gold})`, margin: "0 auto 16px" }} />
-        <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 20, marginBottom: 8 }}>모든 문제 완료! 🎉</div>
-        <div style={{ color: T.muted, fontSize: 13, lineHeight: 1.6 }}>이 유형을 다 풀었어요.<br />다른 탭을 풀거나 새 패치를 기다려보세요.</div>
+        <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 20, marginBottom: 8 }}>
+          {reviewMode ? "복습 완료! 🎉" : "모든 문제 완료! 🎉"}
+        </div>
+        <div style={{ color: T.muted, fontSize: 13, lineHeight: 1.6 }}>
+          {reviewMode
+            ? <>틀렸던 문제를 모두 다시 맞혔어요.<br />잘하고 있어요!</>
+            : <>이 유형을 다 풀었어요.<br />다른 탭을 풀거나 새 패치를 기다려보세요.</>}
+        </div>
+        {onHome && (
+          <button onClick={onHome} style={{ marginTop: 18, borderRadius: 12, border: `1px solid ${T.line}`,
+            background: "transparent", color: T.text, padding: "10px 18px", cursor: "pointer",
+            fontFamily: T.fontDisplay, fontWeight: 700 }}>홈으로</button>
+        )}
       </div>
     </CardShell>
   );
