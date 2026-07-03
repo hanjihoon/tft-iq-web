@@ -23,6 +23,25 @@ const T = {
   fontKR: "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif",
 };
 const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+
+// 앱 공유 (모바일 네이티브 공유 시트 / 데스크탑 클립보드 폴백)
+async function shareApp() {
+  const data = {
+    title: "TFT IQ",
+    text: "TFT 메타 덱·아이템 퀴즈! 당신은 몇 개나 맞힐 수 있나요? 🧩",
+    url: "https://tft-iq-web.vercel.app",
+  };
+  try {
+    if (navigator.share) {
+      await navigator.share(data);
+    } else {
+      await navigator.clipboard.writeText(`${data.text} ${data.url}`);
+      alert("링크가 복사되었어요!");
+    }
+  } catch (e) {
+    // 사용자 취소 등은 무시
+  }
+}
 const initial = (name) => name?.trim()?.[0] ?? "?";
 
 const TABS = [
@@ -43,6 +62,7 @@ export default function App() {
   const [tab, setTab] = useState("item_combine");
   const [reviewMode, setReviewMode] = useState(false); // 복습 모드 여부
   const [reviewCounts, setReviewCounts] = useState({}); // {item_combine:N, deck_complete:M}
+  const [showStats, setShowStats] = useState(false); // 통계 화면 표시
   const [queue, setQueue] = useState([]);
   const [reveal, setReveal] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -122,6 +142,21 @@ export default function App() {
 
   useEffect(() => { refreshReviewCounts(); }, [refreshReviewCounts]);
 
+  // 기록 초기화
+  async function handleReset() {
+    if (!window.confirm("정말 모든 기록을 초기화할까요?\n복습 목록과 통계가 모두 사라집니다.")) return;
+    try {
+      await fetch(`${API_BASE}/api/quiz/reset`, {
+        method: "POST", headers: { "X-User-Id": getUserId() },
+      });
+      setReviewCounts({});
+      setShowStats(false);
+      window.alert("기록이 초기화되었어요.");
+    } catch (e) {
+      window.alert("초기화에 실패했어요. 잠시 후 다시 시도하세요.");
+    }
+  }
+
   async function submit(optName, optId) {
     if (reveal) return;
     setChosen(optId);
@@ -150,6 +185,11 @@ export default function App() {
     refreshReviewCounts(); // 복습 개수 갱신 (맞히면 줄고, 새로 틀리면 늚)
   }
 
+  // 통계 화면
+  if (!mode && showStats) {
+    return <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} onReview={(m) => { setShowStats(false); setReviewMode(true); setTab(m); setMode(m); }} />;
+  }
+
   // 홈 화면
   if (!mode) {
     return (
@@ -157,6 +197,7 @@ export default function App() {
         reviewCounts={reviewCounts}
         onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); }}
         onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); }}
+        onStats={() => setShowStats(true)}
       />
     );
   }
@@ -183,10 +224,13 @@ export default function App() {
               border: `1px solid ${T.teal}`, borderRadius: 999, padding: "2px 8px" }}>복습</span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 16, fontSize: 12, color: T.muted }}>
+        <div style={{ display: "flex", gap: 16, fontSize: 12, color: T.muted, alignItems: "center" }}>
           <Stat label="연속" value={streak} accent={streak > 0 ? T.gold : T.muted} />
           <Stat label="최고" value={best} accent={T.muted} />
           <Stat label="푼 문제" value={solved} accent={T.muted} />
+          <button onClick={shareApp} title="공유하기"
+            style={{ appearance: "none", cursor: "pointer", background: "transparent",
+              border: "none", color: T.violet, fontSize: 16, padding: 0, lineHeight: 1 }}>📤</button>
         </div>
       </div>
 
@@ -229,7 +273,7 @@ export default function App() {
   );
 }
 
-function Home({ onSelect, onReview, reviewCounts }) {
+function Home({ onSelect, onReview, reviewCounts, onStats }) {
   const modes = [
     { key: "item_combine", title: "아이템 BIS 퀴즈", desc: "캐리별 최적 아이템을 맞혀보세요", emoji: "⚔️" },
     { key: "deck_complete", title: "덱 완성 퀴즈", desc: "티어덱에서 빠진 핵심 유닛은?", emoji: "🧩" },
@@ -284,11 +328,140 @@ function Home({ onSelect, onReview, reviewCounts }) {
           );
         })}
       </div>
-      <div style={{ fontSize: 11, color: T.muted, marginTop: 26, textAlign: "center", lineHeight: 1.6 }}>
+      <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+        <button onClick={onStats}
+          style={{ appearance: "none", cursor: "pointer",
+            borderRadius: 12, border: `1px solid ${T.gold}`,
+            background: "rgba(246,198,82,0.1)", color: T.gold,
+            fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 6 }}>
+          📊 내 기록
+        </button>
+        <button onClick={shareApp}
+          style={{ appearance: "none", cursor: "pointer",
+            borderRadius: 12, border: `1px solid ${T.violet}`,
+            background: "rgba(139,108,255,0.1)", color: T.violet,
+            fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 6 }}>
+          📤 공유하기
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: T.muted, marginTop: 16, textAlign: "center", lineHeight: 1.6 }}>
         언제든 상단 탭이나 &larr; 버튼으로 바꿀 수 있어요
       </div>
     </div>
   );
+}
+
+const TYPE_LABEL = { item_combine: "아이템 BIS", deck_complete: "덱 완성" };
+
+function StatsScreen({ onBack, onReset, onReview }) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/quiz/stats`, { headers: { "X-User-Id": getUserId() } })
+      .then((r) => r.json())
+      .then((d) => { setStats(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: "100%", background: `radial-gradient(120% 80% at 50% -10%, ${T.bg2}, ${T.bg})`,
+      color: T.text, fontFamily: T.fontKR, display: "flex", flexDirection: "column",
+      alignItems: "center", padding: "24px 16px 40px",
+    }}>
+      <StyleInject />
+      <div style={{ width: "100%", maxWidth: 380, display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+        <button onClick={onBack} title="홈으로"
+          style={{ appearance: "none", cursor: "pointer", background: "transparent", border: "none",
+            color: T.muted, fontSize: 20, padding: "0 4px 0 0", lineHeight: 1 }}>&larr;</button>
+        <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 20 }}>📊 내 기록</div>
+      </div>
+
+      {loading ? (
+        <div style={{ color: T.muted, marginTop: 40 }}>불러오는 중…</div>
+      ) : !stats || stats.total === 0 ? (
+        <div style={{ maxWidth: 380, textAlign: "center", marginTop: 40, color: T.muted, fontSize: 14, lineHeight: 1.7 }}>
+          아직 푼 문제가 없어요.<br />퀴즈를 풀면 여기에 기록이 쌓여요!
+        </div>
+      ) : (
+        <div style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 18 }}>
+          {/* 전체 정답률 */}
+          <div style={{ borderRadius: 18, border: `1px solid ${T.line}`, padding: "20px 22px",
+            background: `linear-gradient(160deg, ${T.card2}, ${T.card1})`, textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 6 }}>전체 정답률</div>
+            <div style={{ fontFamily: T.fontDisplay, fontWeight: 800, fontSize: 40, color: T.gold, lineHeight: 1 }}>
+              {stats.rate}%
+            </div>
+            <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>
+              {stats.correct} / {stats.total} 문제
+            </div>
+          </div>
+
+          {/* 유형별 */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {(stats.by_type ?? []).map((t) => (
+              <div key={t.type}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                  <span>{TYPE_LABEL[t.type] ?? t.type}</span>
+                  <span style={{ color: T.muted }}>{t.rate}% · {t.correct}/{t.total}</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <div style={{ width: `${t.rate}%`, height: "100%", borderRadius: 999,
+                    background: `linear-gradient(90deg, ${T.violet}, ${T.gold})` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 약점 */}
+          {(stats.weak ?? []).length > 0 && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.red, marginBottom: 10 }}>
+                약한 부분 · 복습 추천
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {stats.weak.map((w, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                    borderRadius: 12, border: `1px solid ${T.line}`, padding: "10px 14px",
+                    background: "rgba(255,101,133,0.06)" }}>
+                    <div>
+                      <span style={{ fontSize: 11, color: T.muted, marginRight: 6 }}>
+                        {t_emoji(w.type)}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{w.group}</span>
+                      <span style={{ fontSize: 11, color: T.muted, marginLeft: 8 }}>
+                        {w.rate}% ({w.total}문제)
+                      </span>
+                    </div>
+                    <button onClick={() => onReview(w.type)}
+                      style={{ appearance: "none", cursor: "pointer", borderRadius: 8,
+                        border: `1px solid ${T.teal}`, background: "transparent", color: T.teal,
+                        fontFamily: T.fontKR, fontSize: 11, fontWeight: 600, padding: "5px 10px" }}>
+                      복습 →
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 초기화 (작게, 구석에) */}
+          <button onClick={onReset}
+            style={{ marginTop: 8, appearance: "none", cursor: "pointer", background: "transparent",
+              border: "none", color: T.muted, fontSize: 11, textDecoration: "underline", alignSelf: "center" }}>
+            기록 초기화
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function t_emoji(type) {
+  return type === "deck_complete" ? "🧩" : "⚔️";
 }
 
 function Stat({ label, value, accent }) {
