@@ -47,6 +47,7 @@ const initial = (name) => name?.trim()?.[0] ?? "?";
 const TABS = [
   { key: "item_combine", label: "아이템" },
   { key: "deck_complete", label: "덱 완성" },
+  { key: "trait_quiz", label: "특성" },
 ];
 
 function unitIcon(id) {
@@ -100,6 +101,13 @@ export default function App() {
           synergies: p.prompt?.synergies ?? [],
           options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
           deckAvg: p.stats?.deck_avg, deckGames: p.stats?.deck_games,
+        };
+      } else if (type === "trait_quiz") {
+        card = {
+          id: p.id, type, patch: p.patch,
+          unit: p.prompt?.unit ?? { name: "?" },
+          options: p.prompt?.options ?? [],   // 특성 보기 (문자열 배열)
+          answer: p.prompt?.answer ?? [],      // 정답 특성들 (문자열 배열)
         };
       } else {
         const carry = p.prompt?.carry ?? { name: "?" };
@@ -186,6 +194,29 @@ export default function App() {
     refreshReviewCounts(); // 복습 개수 갱신 (맞히면 줄고, 새로 틀리면 늚)
   }
 
+  // 특성 퀴즈: 다중선택 제출 (선택한 특성 배열 전송)
+  async function submitTraits(selected) {
+    if (reveal) return;
+    // 정답 판정: 선택 집합 == 정답 집합 (완전 일치)
+    const answerSet = new Set(current.answer);
+    const selSet = new Set(selected);
+    const correct =
+      answerSet.size === selSet.size &&
+      [...answerSet].every((a) => selSet.has(a));
+    try {
+      // attempt 기록 (통계/복습용) — chosen에 선택 특성들을 문자열로
+      await fetch(`${API_BASE}/api/quiz/${current.id}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": getUserId() },
+        body: JSON.stringify({ chosen: [...selected].sort().join(","), correct })
+      });
+    } catch (e) {
+      // 기록 실패해도 채점은 진행 (학습 우선)
+    }
+    setChosen(selected); // 선택한 특성 배열 저장 (채점 표시용)
+    finishReveal(correct, current.answer.join(", "), null);
+  }
+
   // 통계 화면
   if (!mode && showStats) {
     return <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} onReview={(m) => { setShowStats(false); setReviewMode(true); setTab(m); setMode(m); }} />;
@@ -266,6 +297,8 @@ export default function App() {
           <SkeletonCard />
         ) : current.type === "deck_complete" ? (
           <DeckCard current={current} chosen={chosen} reveal={reveal} onPick={submit} onNext={() => loadNext(tab)} />
+        ) : current.type === "trait_quiz" ? (
+          <TraitCard current={current} chosen={chosen} reveal={reveal} onSubmit={submitTraits} onNext={() => loadNext(tab)} />
         ) : (
           <ItemCard current={current} chosen={chosen} reveal={reveal} onPick={submit} onNext={() => loadNext(tab)} />
         )}
@@ -278,6 +311,7 @@ function Home({ onSelect, onReview, reviewCounts, onStats }) {
   const modes = [
     { key: "item_combine", title: "아이템 BIS 퀴즈", desc: "캐리별 최적 아이템을 맞혀보세요", emoji: "⚔️" },
     { key: "deck_complete", title: "덱 완성 퀴즈", desc: "티어덱에서 빠진 핵심 유닛은?", emoji: "🧩" },
+    { key: "trait_quiz", title: "특성 퀴즈", desc: "이 유닛의 특성을 모두 맞혀보세요", emoji: "🔮" },
   ];
   return (
     <div style={{
@@ -354,7 +388,7 @@ function Home({ onSelect, onReview, reviewCounts, onStats }) {
   );
 }
 
-const TYPE_LABEL = { item_combine: "아이템 BIS", deck_complete: "덱 완성" };
+const TYPE_LABEL = { item_combine: "아이템 BIS", deck_complete: "덱 완성", trait_quiz: "특성" };
 
 function StatsScreen({ onBack, onReset, onReview }) {
   const [stats, setStats] = useState(null);
@@ -462,7 +496,9 @@ function StatsScreen({ onBack, onReset, onReview }) {
 }
 
 function t_emoji(type) {
-  return type === "deck_complete" ? "🧩" : "⚔️";
+  if (type === "deck_complete") return "🧩";
+  if (type === "trait_quiz") return "🔮";
+  return "⚔️";
 }
 
 function Stat({ label, value, accent }) {
@@ -655,6 +691,83 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
           </div>
         ) : (
           <div style={{ textAlign: "center", fontSize: 12, color: T.muted }}>빠진 유닛을 골라보세요</div>
+        )}
+      </div>
+    </CardShell>
+  );
+}
+
+function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
+  const [selected, setSelected] = useState([]);
+  useEffect(() => { setSelected([]); }, [current.id]); // 문제 바뀌면 선택 초기화
+
+  const answerSet = new Set(current.answer);
+  const toggle = (tr) => {
+    if (reveal) return;
+    setSelected((s) => s.includes(tr) ? s.filter((x) => x !== tr) : [...s, tr]);
+  };
+
+  return (
+    <CardShell>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: T.fontDisplay, fontSize: 11, letterSpacing: "0.12em", color: T.muted,
+          border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px" }}>PATCH {current.patch}</span>
+        <span style={{ fontSize: 11, color: T.muted }}>특성 퀴즈</span>
+      </div>
+
+      {/* 유닛 */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 14 }}>
+        <UnitHex unit={current.unit} highlight />
+        <div style={{ fontWeight: 800, fontSize: 18, marginTop: 8 }}>{current.unit.name}</div>
+        <div style={{ marginTop: 4, fontSize: 13, color: T.muted }}>이 유닛의 특성을 모두 고르세요</div>
+      </div>
+
+      {/* 특성 보기 (다중선택) */}
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 18 }}>
+        {current.options.map((tr) => {
+          const isSel = selected.includes(tr);
+          const isAns = answerSet.has(tr);
+          let border = T.line, bg = "rgba(255,255,255,0.03)", color = T.text;
+          if (reveal) {
+            if (isAns) { border = T.teal; bg = "rgba(61,224,168,0.12)"; color = T.teal; }       // 정답
+            else if (isSel) { border = T.red; bg = "rgba(255,101,133,0.12)"; color = T.red; }    // 틀리게 고름
+          } else if (isSel) {
+            border = T.violet; bg = "rgba(139,108,255,0.15)"; color = T.violet;                  // 선택 중
+          }
+          return (
+            <button key={tr} disabled={!!reveal} onClick={() => toggle(tr)}
+              style={{ appearance: "none", cursor: reveal ? "default" : "pointer",
+                borderRadius: 999, border: `1.5px solid ${border}`, background: bg, color,
+                padding: "8px 14px", fontFamily: T.fontKR, fontSize: 13, fontWeight: 600 }}>
+              {reveal && isAns ? "✓ " : ""}{tr}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 하단: 제출 or 결과 */}
+      <div style={{ marginTop: "auto", paddingTop: 18 }}>
+        {reveal ? (
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: reveal.correct ? T.teal : T.red,
+              fontFamily: T.fontDisplay, marginBottom: 6 }}>
+              {reveal.correct ? "정답!" : "아쉬워!"}
+              <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>
+                {current.unit.name}: {current.answer.join(", ")}
+              </span>
+            </div>
+            <NextButton onNext={onNext} />
+          </div>
+        ) : (
+          <button onClick={() => onSubmit(selected)} disabled={selected.length === 0}
+            style={{ width: "100%", appearance: "none",
+              cursor: selected.length === 0 ? "default" : "pointer",
+              borderRadius: 12, border: "none",
+              background: selected.length === 0 ? T.line : `linear-gradient(135deg, ${T.violet}, ${T.gold})`,
+              color: selected.length === 0 ? T.muted : "#0a0a0f",
+              padding: "13px", fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 15 }}>
+            제출하기 {selected.length > 0 ? `(${selected.length}개 선택)` : ""}
+          </button>
         )}
       </div>
     </CardShell>
