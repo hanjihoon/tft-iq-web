@@ -44,6 +44,19 @@ async function shareApp() {
 }
 const initial = (name) => name?.trim()?.[0] ?? "?";
 
+// 오답/문제 제보 (원클릭)
+async function reportPuzzle(id) {
+  try {
+    await fetch(`${API_BASE}/api/quiz/${id}/report`, {
+      method: "POST",
+      headers: { "X-User-Id": getUserId() },
+    });
+    alert("제보 감사합니다! 검토 후 개선할게요 🙏");
+  } catch (e) {
+    alert("제보 전송에 실패했어요. 잠시 후 다시 시도해주세요.");
+  }
+}
+
 const TABS = [
   { key: "item_combine", label: "아이템" },
   { key: "deck_complete", label: "덱 완성" },
@@ -64,6 +77,7 @@ export default function App() {
   const [reviewMode, setReviewMode] = useState(false); // 복습 모드 여부
   const [reviewCounts, setReviewCounts] = useState({}); // {item_combine:N, deck_complete:M}
   const [showStats, setShowStats] = useState(false); // 통계 화면 표시
+  const [showMeta, setShowMeta] = useState(false); // 메타 목록 화면 표시
   const [queue, setQueue] = useState([]);
   const [reveal, setReveal] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -208,7 +222,7 @@ export default function App() {
       await fetch(`${API_BASE}/api/quiz/${current.id}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-User-Id": getUserId() },
-        body: JSON.stringify({ chosen: [...selected].sort().join(","), correct })
+        body: JSON.stringify({ chosen: selected.join(","), correct }),
       });
     } catch (e) {
       // 기록 실패해도 채점은 진행 (학습 우선)
@@ -222,6 +236,11 @@ export default function App() {
     return <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} onReview={(m) => { setShowStats(false); setReviewMode(true); setTab(m); setMode(m); }} />;
   }
 
+  // 메타 목록 화면
+  if (!mode && showMeta) {
+    return <MetaListScreen onBack={() => setShowMeta(false)} />;
+  }
+
   // 홈 화면
   if (!mode) {
     return (
@@ -230,6 +249,7 @@ export default function App() {
         onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); }}
         onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); }}
         onStats={() => setShowStats(true)}
+        onMeta={() => setShowMeta(true)}
       />
     );
   }
@@ -307,7 +327,7 @@ export default function App() {
   );
 }
 
-function Home({ onSelect, onReview, reviewCounts, onStats }) {
+function Home({ onSelect, onReview, reviewCounts, onStats, onMeta }) {
   const modes = [
     { key: "item_combine", title: "아이템 BIS 퀴즈", desc: "캐리별 최적 아이템을 맞혀보세요", emoji: "⚔️" },
     { key: "deck_complete", title: "덱 완성 퀴즈", desc: "티어덱에서 빠진 핵심 유닛은?", emoji: "🧩" },
@@ -363,7 +383,15 @@ function Home({ onSelect, onReview, reviewCounts, onStats }) {
           );
         })}
       </div>
-      <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+      <div style={{ display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap", justifyContent: "center" }}>
+        <button onClick={onMeta}
+          style={{ appearance: "none", cursor: "pointer",
+            borderRadius: 12, border: `1px solid ${T.teal}`,
+            background: "rgba(61,224,168,0.1)", color: T.teal,
+            fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 6 }}>
+          📋 메타 보기
+        </button>
         <button onClick={onStats}
           style={{ appearance: "none", cursor: "pointer",
             borderRadius: 12, border: `1px solid ${T.gold}`,
@@ -383,6 +411,13 @@ function Home({ onSelect, onReview, reviewCounts, onStats }) {
       </div>
       <div style={{ fontSize: 11, color: T.muted, marginTop: 16, textAlign: "center", lineHeight: 1.6 }}>
         언제든 상단 탭이나 &larr; 버튼으로 바꿀 수 있어요
+      </div>
+      <div style={{ fontSize: 9.5, color: T.muted, opacity: 0.7, marginTop: 20, textAlign: "center",
+        lineHeight: 1.5, maxWidth: 340, padding: "0 8px" }}>
+        TFT IQ isn't endorsed by Riot Games and doesn't reflect the views or opinions
+        of Riot Games or anyone officially involved in producing or managing Riot Games
+        properties. Riot Games, and all associated properties are trademarks or registered
+        trademarks of Riot Games, Inc.
       </div>
     </div>
   );
@@ -501,6 +536,109 @@ function t_emoji(type) {
   return "⚔️";
 }
 
+function MetaListScreen({ onBack }) {
+  const [decks, setDecks] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/meta/decks`, { headers: { "X-User-Id": getUserId() } })
+      .then((r) => r.json())
+      .then((d) => { setDecks(Array.isArray(d) ? d : (d.decks ?? [])); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: "100%", background: `radial-gradient(120% 80% at 50% -10%, ${T.bg2}, ${T.bg})`,
+      color: T.text, fontFamily: T.fontKR, display: "flex", flexDirection: "column",
+      alignItems: "center", padding: "24px 16px 40px",
+    }}>
+      <StyleInject />
+      <div style={{ width: "100%", maxWidth: 420, display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <button onClick={onBack} title="홈으로"
+          style={{ appearance: "none", cursor: "pointer", background: "transparent", border: "none",
+            color: T.muted, fontSize: 20, padding: "0 4px 0 0", lineHeight: 1 }}>&larr;</button>
+        <div style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 20 }}>📋 메타 티어</div>
+      </div>
+      <div style={{ width: "100%", maxWidth: 420, fontSize: 11, color: T.muted, marginBottom: 16, paddingLeft: 32 }}>
+        평균 등수가 낮을수록 상위 티어예요
+      </div>
+
+      {loading ? (
+        <div style={{ color: T.muted, marginTop: 40 }}>불러오는 중…</div>
+      ) : !decks || decks.length === 0 ? (
+        <div style={{ color: T.muted, marginTop: 40, textAlign: "center", fontSize: 14 }}>
+          아직 메타 데이터가 없어요.
+        </div>
+      ) : (
+        <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 10 }}>
+          {decks.map((d, i) => (
+            <div key={i} style={{ borderRadius: 16, border: `1px solid ${T.line}`, padding: "14px 16px",
+              background: `linear-gradient(160deg, ${T.card2}, ${T.card1})` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontFamily: T.fontDisplay, fontWeight: 800, fontSize: 15,
+                    color: i < 3 ? T.gold : T.muted, minWidth: 22 }}>#{i + 1}</span>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>{d.trait_label ?? "덱"}</span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 14, color: T.gold }}>
+                    {Number(d.avg_placement).toFixed(2)}등
+                  </span>
+                  <span style={{ fontSize: 10, color: T.muted, marginLeft: 6 }}>
+                    {d.games?.toLocaleString()}판
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {(d.units ?? []).map((u) => (
+                  <MetaUnit key={u.id ?? u.name} unit={u} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetaUnit({ unit }) {
+  const icon = unit.icon ?? unitIcon(unit.id); // id로 icon 생성 (저장 안 했으니)
+  const items = unit.items ?? [];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 46 }}>
+      <div style={{ position: "relative", width: 40, height: 40 }}>
+        <div style={{ position: "absolute", inset: -1.5, clipPath: HEX, background: T.line }} />
+        <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
+          background: `linear-gradient(160deg, ${T.card2}, ${T.bg})`,
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {icon ? (
+            <img src={icon} alt={unit.name} width={40} height={40} style={{ objectFit: "cover" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          ) : (
+            <span style={{ fontSize: 10, color: T.violet }}>{initial(unit.name)}</span>
+          )}
+        </div>
+      </div>
+      {/* 캐리 유닛의 추천 아이템 (있을 때만) */}
+      {items.length > 0 && (
+        <div style={{ display: "flex", gap: 1, marginTop: 2, height: 15 }}>
+          {items.map((it, i) => (
+            <img key={i} src={it.icon} alt={it.name}
+              title={`${it.name} · 평균 ${Number(it.avg).toFixed(2)}등`}
+              width={14} height={14}
+              style={{ borderRadius: 3, border: `1px solid ${T.line}` }}
+              onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+          ))}
+        </div>
+      )}
+      <span style={{ fontSize: 8, color: T.muted, marginTop: 2, maxWidth: 44,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{unit.name}</span>
+    </div>
+  );
+}
+
 function Stat({ label, value, accent }) {
   return (
     <div style={{ textAlign: "right" }}>
@@ -595,6 +733,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
               </div>
             )}
             <NextButton onNext={onNext} />
+            <ReportLink puzzleId={current.id} />
           </div>
         ) : (
           <div style={{ textAlign: "center", fontSize: 12, color: T.muted }}>아이템을 탭해 정답을 맞혀보세요</div>
@@ -688,6 +827,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
               <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>핵심 유닛은 {best?.name}</span>
             </div>
             <NextButton onNext={onNext} />
+            <ReportLink puzzleId={current.id} />
           </div>
         ) : (
           <div style={{ textAlign: "center", fontSize: 12, color: T.muted }}>빠진 유닛을 골라보세요</div>
@@ -757,6 +897,7 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
               </span>
             </div>
             <NextButton onNext={onNext} />
+            <ReportLink puzzleId={current.id} />
           </div>
         ) : (
           <button onClick={() => onSubmit(selected)} disabled={selected.length === 0}
@@ -803,6 +944,22 @@ function NextButton({ onNext }) {
       padding: "14px", fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 15, letterSpacing: "0.03em",
       color: T.bg, background: `linear-gradient(135deg, ${T.violet}, ${T.gold})` }}>
       다음 문제 →
+    </button>
+  );
+}
+
+// 정답 공개 후 표시되는 제보 링크 (작게)
+function ReportLink({ puzzleId }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={() => { if (!done) { reportPuzzle(puzzleId); setDone(true); } }}
+      disabled={done}
+      style={{ display: "block", margin: "10px auto 0", appearance: "none",
+        background: "transparent", border: "none", cursor: done ? "default" : "pointer",
+        color: T.muted, fontSize: 11, opacity: done ? 0.5 : 0.8,
+        textDecoration: done ? "none" : "underline" }}>
+      {done ? "제보 완료 🙏" : "🚩 이 문제가 이상해요"}
     </button>
   );
 }
