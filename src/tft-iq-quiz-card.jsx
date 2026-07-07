@@ -63,12 +63,18 @@ const TABS = [
   { key: "trait_quiz", label: "특성" },
 ];
 
+// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
+const UNIT_ICON_OVERRIDES = {
+  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
+};
+
 function unitIcon(id) {
   if (!id) return null;
   const low = id.toLowerCase();
   const m = low.match(/^tft(\d+)_/);
   if (!m) return null;
-  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${low}_square.tft_set${m[1]}.png`;
+  const fileBase = UNIT_ICON_OVERRIDES[low] || low;
+  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${fileBase}_square.tft_set${m[1]}.png`;
 }
 
 export default function App() {
