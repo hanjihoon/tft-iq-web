@@ -1,11 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { parseSkillDesc } from "./skill-parser";
+
 
 /* ============================================================
    TFT IQ — 통합 퀴즈 (홈 모드 선택 + 아이템 BIS + 덱 완성)
    홈에서 모드 선택 → 퀴즈 화면(탭으로 즉시 전환 가능)
    ============================================================ */
 const USE_MOCK = false;
-const API_BASE = "https://tft-iq-backend.fly.dev";
+const API_BASE = "http://localhost:8080";
+// const API_BASE = "https://tft-iq-backend.fly.dev";
+
+const CostContext = createContext({});     
+const UnitInfoContext = createContext({}); 
+
+// 코스트별 테두리 색 (TFT 표준)
+const COST_COLORS = {
+  1: "#808080",  // 회색
+  2: "#11b288",  // 초록 (연두)
+  3: "#207ac7",  // 파랑
+  4: "#c440da",  // 보라 (자주)
+  5: "#ffb93b",  // 금색 (노랑)
+};
+
+function costColor(cost) {
+  return COST_COLORS[cost] ?? T.line;
+}
 
 function getUserId() {
   try {
@@ -77,7 +96,108 @@ function unitIcon(id) {
   return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${fileBase}_square.tft_set${m[1]}.png`;
 }
 
+function UnitDetailModal({ unitId, onClose }) {
+  const unitInfo = useContext(UnitInfoContext);
+  const info = unitId ? unitInfo[unitId] : null;
+  if (!unitId || !info) return null;
+
+  const ability = info.ability;
+  const icon = unitIcon(unitId);
+  const cc = costColor(info.cost);
+
+  return (
+    <div onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(0,0,0,0.7)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 400, maxHeight: "85vh", overflow: "auto",
+          borderRadius: 20, border: `1px solid ${T.line}`,
+          background: `linear-gradient(160deg, ${T.card2}, ${T.card1})`,
+          padding: 20, position: "relative" }}>
+
+        {/* 닫기 */}
+        <button onClick={onClose}
+          style={{ position: "absolute", top: 14, right: 16, appearance: "none",
+            background: "transparent", border: "none", color: T.muted,
+            fontSize: 22, cursor: "pointer", lineHeight: 1 }}>×</button>
+
+        {/* 헤더: 아이콘 + 이름 + 코스트 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
+            <div style={{ position: "absolute", inset: -2, clipPath: HEX,
+              background: cc ?? T.line }} />
+            <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
+              background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {icon && <img src={icon} alt="" width={60} height={60}
+                style={{ objectFit: "cover" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+            </div>
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontWeight: 800, fontSize: 20 }}>{info.name ?? unitId}</span>
+              <span style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 14,
+                color: cc ?? T.gold }}>💰{info.cost}</span>
+            </div>
+            {/* 특성 */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+              {(info.traits ?? []).map((tr) => (
+                <span key={tr} style={{ fontSize: 11, color: T.violet,
+                  border: `1px solid ${T.line}`, borderRadius: 999,
+                  padding: "2px 9px", background: "rgba(139,108,255,0.08)" }}>{tr}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 스킬 */}
+        {ability && (
+          <div style={{ borderRadius: 14, border: `1px solid ${T.line}`,
+            background: "rgba(255,255,255,0.02)", padding: 14, marginTop: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              {ability.icon && <img src={ability.icon} alt="" width={36} height={36}
+                style={{ borderRadius: 8, border: `1px solid ${T.line}` }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+              <span style={{ fontWeight: 700, fontSize: 15, color: T.gold }}>{ability.name}</span>
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.7, color: T.text }}
+              dangerouslySetInnerHTML={{
+                __html: parseSkillDesc(ability.desc, ability.variables ?? []),
+              }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [unitInfo, setUnitInfo] = useState({});   // 전체: {id: {cost, traits, ability}}
+  const [costMap, setCostMap] = useState({});      // cost만: {id: cost} (테두리 호환)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/meta/units`)
+      .then(r => r.json())
+      .then(info => {
+        setUnitInfo(info);
+        const cm = {};
+        Object.entries(info).forEach(([id, u]) => { cm[id] = u?.cost; });
+        setCostMap(cm);
+      })
+      .catch(() => {});
+  }, []);
+
+
+  return (
+    <CostContext.Provider value={costMap}>
+      <UnitInfoContext.Provider value={unitInfo}>
+        <AppMain />
+      </UnitInfoContext.Provider>
+    </CostContext.Provider>
+  );
+}
+function AppMain() {
   const [mode, setMode] = useState(null); // null=홈, 값=퀴즈
   const [tab, setTab] = useState("item_combine");
   const [reviewMode, setReviewMode] = useState(false); // 복습 모드 여부
@@ -545,6 +665,7 @@ function t_emoji(type) {
 function MetaListScreen({ onBack }) {
   const [decks, setDecks] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedUnit, setSelectedUnit] = useState(null);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/meta/decks`, { headers: { "X-User-Id": getUserId() } })
@@ -598,24 +719,31 @@ function MetaListScreen({ onBack }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {(d.units ?? []).map((u) => (
-                  <MetaUnit key={u.id ?? u.name} unit={u} />
+                  // MetaListScreen 안에 상태 추가
+                  <MetaUnit key={u.id ?? u.name} unit={u} onClick={() => setSelectedUnit(u.id)} />
+
                 ))}
               </div>
             </div>
           ))}
         </div>
       )}
+      {selectedUnit && (
+        <UnitDetailModal unitId={selectedUnit} onClose={() => setSelectedUnit(null)} />
+      )}
     </div>
   );
 }
 
-function MetaUnit({ unit }) {
+function MetaUnit({ unit, onClick }) {
   const icon = unit.icon ?? unitIcon(unit.id); // id로 icon 생성 (저장 안 했으니)
   const items = unit.items ?? [];
+  const costMap = useContext(CostContext);
+  const cc = costColor(costMap[unit.id]);
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 46 }}>
+    <div onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 46 }}>
       <div style={{ position: "relative", width: 40, height: 40 }}>
-        <div style={{ position: "absolute", inset: -1.5, clipPath: HEX, background: T.line }} />
+        <div style={{ position: "absolute", inset: -1.5, clipPath: HEX, background: cc ?? T.line }} />
         <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
           background: `linear-gradient(160deg, ${T.card2}, ${T.bg})`,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -668,6 +796,8 @@ function CardShell({ children }) {
 function ItemCard({ current, chosen, reveal, onPick, onNext }) {
   const best = reveal?.stats?.find((s) => s.is_best);
   const yours = reveal?.stats?.find((s) => s.id === chosen);
+  const costMap = useContext(CostContext);
+  const carryCost = costColor(costMap[current.carry.id]);
   return (
     <CardShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -677,7 +807,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 18, marginBottom: 6 }}>
         <div style={{ position: "relative", width: 92, height: 92 }}>
-          <div style={{ position: "absolute", inset: -3, clipPath: HEX, background: `linear-gradient(135deg, ${T.violet}, ${T.gold})` }} />
+          <div style={{ position: "absolute", inset: -3, clipPath: HEX, background: carryCost ?? `linear-gradient(135deg, ${T.violet}, ${T.gold})` }} />
           <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
             background: `linear-gradient(160deg, ${T.card2}, ${T.bg2})`,
             display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 34 }}>
@@ -755,6 +885,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
   // 문제 바뀌면 힌트 다시 접기
   useEffect(() => { setHintOpen(false); }, [current.id]);
   const synergies = current.synergies ?? [];
+  const costMap = useContext(CostContext);
 
   return (
     <CardShell>
@@ -819,7 +950,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
                   padding: "8px 10px", color: T.text, fontFamily: T.fontKR, fontSize: 13, fontWeight: 600,
                   display: "flex", alignItems: "center", gap: 8 }}>
                 {opt.icon && <img src={opt.icon} alt="" width={26} height={26}
-                  style={{ borderRadius: 5, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1px solid ${T.line}` }}
+                  style={{ borderRadius: 5, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1.5px solid ${costColor(costMap[opt.id]) ?? T.line}` }}
                   onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opt.name}</span>
               </button>
@@ -923,11 +1054,15 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
 
 function UnitHex({ unit, highlight }) {
   const size = 52;
+  const costMap = useContext(CostContext);
+  const cc = unit ? costColor(costMap[unit.id]) : null;
+  // 테두리: cost 색 있으면 그거, 없으면 기존 폴백
+  const borderBg = cc ?? (highlight ? `linear-gradient(135deg, ${T.violet}, ${T.gold})` : T.line);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, width: size + 6 }}>
       <div style={{ position: "relative", width: size, height: size }}>
         <div style={{ position: "absolute", inset: -2, clipPath: HEX,
-          background: highlight ? `linear-gradient(135deg, ${T.violet}, ${T.gold})` : T.line }} />
+          background: borderBg }} />
         <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
           background: `linear-gradient(160deg, ${T.card2}, ${T.bg})`,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
