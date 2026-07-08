@@ -12,6 +12,8 @@ const API_BASE = "https://tft-iq-backend.fly.dev";
 
 const CostContext = createContext({});     
 const UnitInfoContext = createContext({}); 
+const TraitInfoContext = createContext({});
+
 
 // 코스트별 테두리 색 (TFT 표준)
 const COST_COLORS = {
@@ -21,6 +23,24 @@ const COST_COLORS = {
   4: "#c440da",  // 보라 (자주)
   5: "#ffb93b",  // 금색 (노랑)
 };
+
+const STYLE_COLORS = {
+  1: "#b06a3b",  // 브론즈
+  2: "#9fb4c4",  // 실버(구)
+  3: "#9fb4c4",  // 실버
+  5: "#ffc93c",  // 골드
+  6: "#6ad4e0",  // 프리즘 (청록)
+};
+
+// 개수 → style (breakpoints에서 해당 구간)
+function traitStyle(count, breakpoints) {
+  let style = 0;  // 0 = 비활성
+  for (const [min, st] of breakpoints) {
+    if (count >= min) style = st;
+    else break;
+  }
+  return style;
+}
 
 function costColor(cost) {
   return COST_COLORS[cost] ?? T.line;
@@ -42,6 +62,55 @@ const T = {
   fontKR: "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif",
 };
 const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+
+const TABS = [
+  { key: "item_combine", label: "아이템" },
+  { key: "deck_complete", label: "덱 완성" },
+  { key: "trait_quiz", label: "특성" },
+];
+
+// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
+const UNIT_ICON_OVERRIDES = {
+  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
+};
+
+export default function App() {
+  const [unitInfo, setUnitInfo] = useState({});   // 전체: {id: {cost, traits, ability}}
+  const [costMap, setCostMap] = useState({});      // cost만: {id: cost} (테두리 호환)
+  const [traitInfo, setTraitInfo] = useState({});
+
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/meta/units`)
+      .then(r => r.json())
+      .then(info => {
+        setUnitInfo(info);
+        const cm = {};
+        Object.entries(info).forEach(([id, u]) => { cm[id] = u?.cost; });
+        setCostMap(cm);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/meta/traits`)
+      .then(r => r.json())
+      .then(setTraitInfo)
+      .catch(() => {});
+  }, []);
+
+
+  return (
+    <CostContext.Provider value={costMap}>
+      <UnitInfoContext.Provider value={unitInfo}>
+        <TraitInfoContext.Provider value={traitInfo}>
+          <AppMain/>
+        </TraitInfoContext.Provider>
+      </UnitInfoContext.Provider>
+    </CostContext.Provider>
+  );
+}
+
 
 // 앱 공유 (모바일 네이티브 공유 시트 / 데스크탑 클립보드 폴백)
 async function shareApp() {
@@ -76,16 +145,24 @@ async function reportPuzzle(id) {
   }
 }
 
-const TABS = [
-  { key: "item_combine", label: "아이템" },
-  { key: "deck_complete", label: "덱 완성" },
-  { key: "trait_quiz", label: "특성" },
-];
-
-// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
-const UNIT_ICON_OVERRIDES = {
-  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
-};
+function computeDeckTraits(units, unitInfo, traitInfo) {
+  // 특성별 카운트
+  const count = {};
+  units.forEach(u => {
+    const traits = unitInfo[u.id]?.traits ?? [];
+    traits.forEach(tr => { count[tr] = (count[tr] ?? 0) + 1; });
+  });
+  // 활성 특성만 (style > 0), 등급 높은 순
+  return Object.entries(count)
+    .map(([name, n]) => {
+      const info = traitInfo[name];
+      if (!info) return null;
+      const style = traitStyle(n, info.breakpoints ?? []);
+      return { name, count: n, icon: info.icon, style };
+    })
+    .filter(t => t && t.style > 0)
+    .sort((a, b) => b.style - a.style || b.count - a.count);
+}
 
 function unitIcon(id) {
   if (!id) return null;
@@ -172,31 +249,7 @@ function UnitDetailModal({ unitId, onClose }) {
   );
 }
 
-export default function App() {
-  const [unitInfo, setUnitInfo] = useState({});   // 전체: {id: {cost, traits, ability}}
-  const [costMap, setCostMap] = useState({});      // cost만: {id: cost} (테두리 호환)
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/meta/units`)
-      .then(r => r.json())
-      .then(info => {
-        setUnitInfo(info);
-        const cm = {};
-        Object.entries(info).forEach(([id, u]) => { cm[id] = u?.cost; });
-        setCostMap(cm);
-      })
-      .catch(() => {});
-  }, []);
-
-
-  return (
-    <CostContext.Provider value={costMap}>
-      <UnitInfoContext.Provider value={unitInfo}>
-        <AppMain />
-      </UnitInfoContext.Provider>
-    </CostContext.Provider>
-  );
-}
 function AppMain() {
   const [mode, setMode] = useState(null); // null=홈, 값=퀴즈
   const [tab, setTab] = useState("item_combine");
@@ -516,7 +569,7 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta }) {
             background: "rgba(61,224,168,0.1)", color: T.teal,
             fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
             display: "flex", alignItems: "center", gap: 6 }}>
-          📋 메타 보기
+          📋 메타 순위 보기
         </button>
         <button onClick={onStats}
           style={{ appearance: "none", cursor: "pointer",
@@ -707,6 +760,7 @@ function MetaListScreen({ onBack }) {
                   <span style={{ fontFamily: T.fontDisplay, fontWeight: 800, fontSize: 15,
                     color: i < 3 ? T.gold : T.muted, minWidth: 22 }}>#{i + 1}</span>
                   <span style={{ fontWeight: 700, fontSize: 15 }}>{d.trait_label ?? "덱"}</span>
+                  <DeckTraits units={d.units ?? []} />
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 14, color: T.gold }}>
@@ -1075,6 +1129,33 @@ function UnitHex({ unit, highlight }) {
         </div>
       </div>
       {unit && <span style={{ fontSize: 9, color: T.muted, maxWidth: size + 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{unit.name}</span>}
+    </div>
+  );
+}
+
+function DeckTraits({ units }) {
+  const unitInfo = useContext(UnitInfoContext);
+  const traitInfo = useContext(TraitInfoContext);
+  const traits = computeDeckTraits(units, unitInfo, traitInfo);
+  if (traits.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+      {traits.map(t => (
+        <div key={t.name} title={`${t.name} ${t.count}`}
+          style={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <div style={{ position: "relative", width: 20, height: 20 }}>
+            <div style={{ position: "absolute", inset: 0, clipPath: HEX,
+              background: STYLE_COLORS[t.style] ?? "#555" }} />
+            <img src={t.icon} alt="" width={20} height={20}
+              style={{ position: "relative", padding: 3, boxSizing: "border-box",
+                filter: "brightness(0) invert(1)" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700,
+            color: STYLE_COLORS[t.style] ?? T.muted }}>{t.count}</span>
+        </div>
+      ))}
     </div>
   );
 }
