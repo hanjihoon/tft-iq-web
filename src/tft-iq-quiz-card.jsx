@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { parseSkillDesc } from "./skill-parser";
+import { parseSkillDesc, parseTraitDesc } from "./skill-parser";
 
 
 /* ============================================================
@@ -7,8 +7,8 @@ import { parseSkillDesc } from "./skill-parser";
    홈에서 모드 선택 → 퀴즈 화면(탭으로 즉시 전환 가능)
    ============================================================ */
 const USE_MOCK = false;
-// const API_BASE = "http://localhost:8080";
-const API_BASE = "https://tft-iq-backend.fly.dev";
+const API_BASE = "http://localhost:8080";
+// const API_BASE = "https://tft-iq-backend.fly.dev";
 
 const CostContext = createContext({});     
 const UnitInfoContext = createContext({}); 
@@ -243,6 +243,71 @@ function UnitDetailModal({ unitId, onClose }) {
                 __html: parseSkillDesc(ability.desc, ability.variables ?? []),
               }} />
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TraitDetailModal({ traitName, onClose }) {
+  const traitInfo = useContext(TraitInfoContext);
+  const info = traitName ? traitInfo[traitName] : null;
+
+  console.log("=== 특성 상세 디버그 ===");
+  console.log("traitName:", traitName);
+  console.log("info:", info);
+  console.log("desc:", info?.desc);
+  console.log("effects:", info?.effects);
+  console.log("parsed:", info ? parseTraitDesc(info.desc, info.effects) : "info 없음");
+
+
+  if (!traitName || !info) return null;
+
+  return (
+    <div onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(0,0,0,0.7)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 400, maxHeight: "85vh", overflowY: "auto",
+          borderRadius: 20, border: `1px solid ${T.line}`,
+          background: `linear-gradient(160deg, ${T.card2}, ${T.card1})`,
+          padding: 20, position: "relative" }}>
+
+        <button onClick={onClose}
+          style={{ position: "absolute", top: 14, right: 16, appearance: "none",
+            background: "transparent", border: "none", color: T.muted,
+            fontSize: 22, cursor: "pointer", lineHeight: 1 }}>×</button>
+
+        {/* 헤더: 아이콘 + 이름 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
+            <div style={{ position: "absolute", inset: 0, clipPath: HEX,
+              background: T.violet }} />
+            <img src={info.icon} alt="" width={44} height={44}
+              style={{ position: "relative", padding: 8, boxSizing: "border-box",
+                filter: "brightness(0) invert(1)" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 20 }}>{traitName}</span>
+        </div>
+
+        {/* 등급별 임계값 */}
+        {info.breakpoints?.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+            {info.breakpoints.map(([min, style], i) => (
+              <span key={i} style={{ fontSize: 12, fontWeight: 700,
+                color: STYLE_COLORS[style] ?? T.muted,
+                border: `1px solid ${STYLE_COLORS[style] ?? T.line}`,
+                borderRadius: 999, padding: "2px 10px" }}>{min}</span>
+            ))}
+          </div>
+        )}
+
+        {/* 설명 */}
+        {info.desc && (
+          <div style={{ fontSize: 13, lineHeight: 1.7, color: T.text }}
+            dangerouslySetInnerHTML={{ __html: parseTraitDesc(info.desc, info.effects) }} />
         )}
       </div>
     </div>
@@ -1136,27 +1201,32 @@ function UnitHex({ unit, highlight }) {
 function DeckTraits({ units }) {
   const unitInfo = useContext(UnitInfoContext);
   const traitInfo = useContext(TraitInfoContext);
+  const [selected, setSelected] = useState(null);  // 추가
   const traits = computeDeckTraits(units, unitInfo, traitInfo);
   if (traits.length === 0) return null;
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-      {traits.map(t => (
-        <div key={t.name} title={`${t.name} ${t.count}`}
-          style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <div style={{ position: "relative", width: 20, height: 20 }}>
-            <div style={{ position: "absolute", inset: 0, clipPath: HEX,
-              background: STYLE_COLORS[t.style] ?? "#555" }} />
-            <img src={t.icon} alt="" width={20} height={20}
-              style={{ position: "relative", padding: 3, boxSizing: "border-box",
-                filter: "brightness(0) invert(1)" }}
-              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+    <>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+          {traits.map(t => (
+            <div key={t.name} onClick={() => setSelected(t.name)}
+              title={`${t.name} ${t.count}`}
+              style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>
+            <div style={{ position: "relative", width: 20, height: 20 }}>
+              <div style={{ position: "absolute", inset: 0, clipPath: HEX,
+                background: STYLE_COLORS[t.style] ?? "#555" }} />
+              <img src={t.icon} alt="" width={20} height={20}
+                style={{ position: "relative", padding: 3, boxSizing: "border-box",
+                  filter: "brightness(0) invert(1)" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700,
+              color: STYLE_COLORS[t.style] ?? T.muted }}>{t.count}</span>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700,
-            color: STYLE_COLORS[t.style] ?? T.muted }}>{t.count}</span>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      {selected && <TraitDetailModal traitName={selected} onClose={() => setSelected(null)} />}
+    </>
   );
 }
 

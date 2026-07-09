@@ -179,6 +179,45 @@ export function parseSkillDesc(desc, variables = []) {
   return s;
 }
 
+export function parseTraitDesc(desc, effects = []) {
+  if (!desc) return "";
+
+  function commonVar(name) {
+    for (const e of effects) { const v = e?.variables?.[name]; if (v != null) return v; }
+    return null;
+  }
+  function subVars(text, effect) {
+    let r = text;
+    if (effect) r = r.replace(/@MinUnits@/g, `<b>${effect.minUnits}</b>`);
+    r = r.replace(/@(\w+)\*(\d+(?:\.\d+)?)@/g, (m, name, mult) => {
+      const v = effect?.variables?.[name] ?? commonVar(name);
+      return v == null ? "" : `<b>${fmtNum(v * parseFloat(mult))}</b>`;
+    });
+    r = r.replace(/@(\w+)@/g, (m, name) => {
+      const v = effect?.variables?.[name] ?? commonVar(name);
+      return v == null ? "" : `<b>${fmtNum(v)}</b>`;
+    });
+    return r;
+  }
+
+  const rowCount = [...desc.matchAll(/<(row|expandRow)>[\s\S]*?<\/\1>/g)].length;
+
+  let s;
+  if (rowCount === 1 && effects.length > 1) {
+    s = desc.replace(/<(row|expandRow)>([\s\S]*?)<\/\1>/g, (m, tag, inner) =>
+      effects.map(eff => subVars(inner, eff)).join("<br/>")
+    );
+  } else {
+    let rowIdx = 0;
+    s = desc.replace(/<(row|expandRow)>([\s\S]*?)<\/\1>/g, (m, tag, inner) => {
+      const eff = effects[rowIdx]; rowIdx++;
+      return subVars(inner, eff);  // <br/> 안 붙임!
+    });
+  }
+  s = subVars(s, null);
+  return parseSkillDesc(s, []);
+}
+
 /* ── 테스트 ── */
 if (typeof process !== "undefined" && process.argv[1]?.includes("skill-parser")) {
   const desc = "대상에게 정령유성을 떨어뜨려 <magicDamage>@ModifiedDamage@(%i:scaleAP%)</magicDamage>의 마법 피해를 입힙니다.<br><br><mainText enabled=TFT17_Astronaut_IsActive alternate=rules><spellActive enabled=TFT17_Astronaut_IsActive alternate=rules>정령 추가 효과:</spellActive><TFTBonus><ShowIfNot.TFT17_Astronaut_IsActive></ShowIfNot.TFT17_Astronaut_IsActive><ShowIf.TFT17_Astronaut_IsActive></ShowIf.TFT17_Astronaut_IsActive></TFTBonus> 주변 대상에게 미니 정령유성 <TFTBonus>@ModifiedMiniMeeps@(%i:set14AmpIcon%)</TFTBonus>개를 떨어뜨려 각각 <magicDamage>@ModifiedMiniDamage@(%i:scaleAP%)</magicDamage>의 마법 피해를 입힙니다.</mainText>";
