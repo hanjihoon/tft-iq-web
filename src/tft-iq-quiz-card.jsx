@@ -7,8 +7,8 @@ import { parseSkillDesc, parseTraitDesc } from "./skill-parser";
    홈에서 모드 선택 → 퀴즈 화면(탭으로 즉시 전환 가능)
    ============================================================ */
 const USE_MOCK = false;
-const API_BASE = "http://localhost:8080";
-// const API_BASE = "https://tft-iq-backend.fly.dev";
+// const API_BASE = "http://localhost:8080";
+const API_BASE = "https://tft-iq-backend.fly.dev";
 
 const CostContext = createContext({});     
 const UnitInfoContext = createContext({}); 
