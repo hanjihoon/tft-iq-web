@@ -537,7 +537,7 @@ function AppMain() {
       await fetch(`${API_BASE}/api/quiz/${current.id}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-User-Id": getUserId() },
-        body: JSON.stringify({ chosen: selected.join(","), correct }),
+        body: JSON.stringify({ chosen = [...selected].sort().join(","), correct }),
       });
     } catch (e) {
       // 기록 실패해도 채점은 진행 (학습 우선)
