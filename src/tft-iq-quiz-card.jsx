@@ -119,18 +119,20 @@ function computeDeckTraits(units, unitInfo, traitInfo) {
 }
 
 function detectLang() {
-  const nav = (navigator.language || "en").toLowerCase();
-  if (nav.startsWith("ko")) return "ko_kr";
-  if (nav.startsWith("ja")) return "ja_jp";
-  if (nav.startsWith("zh")) return "zh_cn";
-  if (nav.startsWith("pt")) return "pt_br";
-  if (nav.startsWith("es")) return "es_mx";
-  if (nav.startsWith("fr")) return "fr_fr";
-  if (nav.startsWith("de")) return "de_de";
-  if (nav.startsWith("ru")) return "ru_ru";
-  if (nav.startsWith("vi")) return "vi_vn";
-  if (nav.startsWith("th")) return "th_th";
-  return "en_us";  // 기본
+  const SUPPORTED = {
+    ko: "ko_kr", ja: "ja_jp", zh: "zh_cn", pt: "pt_br",
+    es: "es_mx", fr: "fr_fr", de: "de_de", ru: "ru_ru",
+    vi: "vi_vn", th: "th_th", en: "en_us",
+  };
+
+  // navigator.languages: 선호 순서 목록 ["ko-KR", "en-US", ...]
+  const prefs = navigator.languages || [navigator.language || "en"];
+
+  for (const lang of prefs) {
+    const base = lang.toLowerCase().split("-")[0];  // "ko-KR" → "ko"
+    if (SUPPORTED[base]) return SUPPORTED[base];
+  }
+  return "en_us";  // 지원 언어 없으면 영어
 }
 
 const T = {
@@ -444,7 +446,7 @@ function AppMain() {
           id: p.id, type, patch: p.patch, carry,
           options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
           hidden: p.stats?.hidden_pick
-            ? { name: p.stats.hidden_pick.name, avg: p.stats.hidden_pick.avg_placement, n: p.stats.hidden_pick.sample_size }
+            ? { id: p.stats.hidden_pick.id, name: p.stats.hidden_pick.name, avg: p.stats.hidden_pick.avg_placement, n: p.stats.hidden_pick.sample_size }
             : null,
         };
       }
@@ -537,7 +539,7 @@ function AppMain() {
       await fetch(`${API_BASE}/api/quiz/${current.id}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-User-Id": getUserId() },
-        body: JSON.stringify({ chosen = [...selected].sort().join(","), correct }),
+        body: JSON.stringify({ chosen: [...selected].sort().join(","), correct }),
       });
     } catch (e) {
       // 기록 실패해도 채점은 진행 (학습 우선)
@@ -1092,7 +1094,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
             </div>
             {current.hidden && (
               <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 12, background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`, fontSize: 12 }}>
-                💡 <b style={{ color: T.violet }}>{t.hidden_pick}</b> 
+                💡 <b style={{ color: T.violet }}>{t.hidden_pick} </b> &nbsp;
                 {fmt(t.item_hidden, { 
                   name: itemInfo[current.hidden.id] ?? current.hidden.name ?? current.hidden.id, 
                   avg: current.hidden.avg?.toFixed(2), 
