@@ -1089,7 +1089,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
               <span style={{ fontFamily: T.fontDisplay }}>{reveal.correct ? t.correct : t.wrong}</span>
               <span style={{ color: T.muted, fontWeight: 500, fontSize: 13 }}>
                 {reveal.correct ? fmt(t.item_best, { name: itemInfo[best.id] ?? best.name ?? best.id, avg: best?.avg?.toFixed(2), n: best?.n,})
-                  : fmt(t.item_best_wrong, { name: itemInfo[best.id] ?? best.name ?? best.id,}) + fmt(t.item_best_wrong_yours, { avg: best?.n,})}
+                  : fmt(t.item_best_wrong, { name: itemInfo[best.id] ?? best.name ?? best.id,}) + fmt(t.item_best_wrong_yours, { avg: yours?.avg,})}
               </span>
             </div>
             {current.hidden && (
