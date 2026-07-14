@@ -61,6 +61,14 @@ function resolveDeckLabel(label, unitInfo, traitInfo) {
   return label; 
 }
 
+function resolveDeckIcon(label, unitInfo, traitInfo) {
+  if (!label) return null;
+  const [type, id] = label.split(":");
+  if (type === "trait") return traitInfo[id]?.icon ?? null;
+  if (type === "unit") return unitInfo[id]?.icon ?? null;
+  return null;
+}
+
 // 코스트별 테두리 색 (TFT 표준)
 const COST_COLORS = {
   1: "#808080",  // 회색
@@ -760,6 +768,9 @@ function StatsScreen({ onBack, onReset, onReview }) {
 
   const TYPE_LABEL = { item_combine: t.type_item, deck_complete: t.type_deck, trait_quiz: t.type_trait };
 
+  const unitInfo = useContext(UnitInfoContext);
+  const traitInfo = useContext(TraitInfoContext);
+
   useEffect(() => {
     fetch(`${API_BASE}/api/quiz/stats`, { headers: { "X-User-Id": getUserId() } })
       .then((r) => r.json())
@@ -797,10 +808,7 @@ function StatsScreen({ onBack, onReset, onReview }) {
               {stats.rate}%
             </div>
             <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>
-              {fmt(t.stats_count, {
-                correct: stats.correct,
-                total: stats.total,
-              })}
+              {fmt(t.stats_count, { correct: stats.correct, total: stats.total })}
             </div>
           </div>
 
@@ -827,15 +835,32 @@ function StatsScreen({ onBack, onReset, onReview }) {
                 {t.stats_weak}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {stats.weak.map((w, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                {stats.weak.map((w, i) => {
+                  const [type, id] = (w.group ?? "").split(":");
+                  const icon = type === "trait" ? traitInfo[id]?.icon 
+                              : type === "unit" ? unitInfo[id]?.icon 
+                              : null;
+                  const name = resolveDeckLabel(w.group, unitInfo, traitInfo);
+
+                  return <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
                     borderRadius: 12, border: `1px solid ${T.line}`, padding: "10px 14px",
                     background: "rgba(255,101,133,0.06)" }}>
                     <div>
                       <span style={{ fontSize: 11, color: T.muted, marginRight: 6 }}>
                         {t_emoji(w.type)}
                       </span>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{w.group}</span>
+                      {icon && (
+                        <img src={icon} alt="" width={20} height={20}
+                          style={type === "trait" 
+                            ? { filter: "brightness(0) invert(1)" }  // 특성: 흰 실루엣
+                            : { borderRadius: 4 }                     // 유닛: 그대로
+                          }
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        />
+                      )}
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>
+                         {name}
+                      </span>
                       <span style={{ fontSize: 11, color: T.muted, marginLeft: 8 }}>
                         {fmt(t.stats_weak_rate, {
                           rate: w.rate,
@@ -850,7 +875,7 @@ function StatsScreen({ onBack, onReset, onReview }) {
                       {t.stats_review}
                     </button>
                   </div>
-                ))}
+                })}
               </div>
             </div>
           )}
@@ -1205,7 +1230,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
           <div>
             <div style={{ fontWeight: 800, fontSize: 15, color: reveal.correct ? T.teal : T.red, fontFamily: T.fontDisplay, marginBottom: 8 }}>
               {reveal.correct ? t.correct : t.wrong}
-              <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>{fmt(t.deck_best, {name: best?.name,})}</span>
+              <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>{fmt(t.deck_best, {name: unitInfo[best?.id]?.name ?? best?.name,})}</span>
             </div>
             <NextButton onNext={onNext} />
             <ReportLink puzzleId={current.id} />
@@ -1260,11 +1285,20 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
           } else if (isSel) {
             border = T.violet; bg = "rgba(139,108,255,0.15)"; color = T.violet;                  // 선택 중
           }
+
+          const icon = traitInfo[tr]?.icon;
+
           return (
             <button key={tr} disabled={!!reveal} onClick={() => toggle(tr)}
-              style={{ appearance: "none", cursor: reveal ? "default" : "pointer",
+              style={{ appearance: "none", cursor: reveal ? "default" : "pointer", gap: 8,
                 borderRadius: 999, border: `1.5px solid ${border}`, background: bg, color,
                 padding: "8px 14px", fontFamily: T.fontKR, fontSize: 13, fontWeight: 600 }}>
+              {/* 특성 아이콘 */}
+              {icon && (
+                <img src={icon} alt="" width={18} height={18}
+                  style={{ filter: "brightness(0) invert(1)", flexShrink: 0 }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              )}
               {reveal && isAns ? "✓ " : ""}{traitInfo[tr]?.name ?? tr}
             </button>
           );
