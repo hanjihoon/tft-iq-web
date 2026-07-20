@@ -516,7 +516,7 @@ function AppMain() {
     }
   }
 
-  async function submit(optName, optId) {
+  async function deckSubmit(optName, optId) {
     if (reveal) return;
     setChosen(optId);
     try {
@@ -531,6 +531,22 @@ function AppMain() {
       }));
       const answerName = statsArr.find((s) => s.is_best)?.name;
       finishReveal(d.correct, answerName, statsArr);
+    } catch (e) {
+      setError(t.err_grade);
+    }
+  }
+
+  async function itemComboSubmit(combo) {
+    if (reveal) return;
+    setChosen(combo);
+    try {
+      const r = await fetch(`${API_BASE}/api/quiz/${current.id}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": getUserId() },
+        body: JSON.stringify({ chosen: combo }),   // combo 문자열
+      });
+      const d = await r.json();
+      finishReveal(d.correct);   // 통계는 카드에 이미 있음 (아래 설명)
     } catch (e) {
       setError(t.err_grade);
     }
@@ -657,11 +673,11 @@ function AppMain() {
         ) : loading || !current ? (
           <SkeletonCard />
         ) : current.type === "deck_complete" ? (
-          <DeckCard current={current} chosen={chosen} reveal={reveal} onPick={submit} onNext={() => loadNext(tab)} />
+          <DeckCard current={current} chosen={chosen} reveal={reveal} onPick={deckSubmit} onNext={() => loadNext(tab)} />
         ) : current.type === "trait_quiz" ? (
           <TraitCard current={current} chosen={chosen} reveal={reveal} onSubmit={submitTraits} onNext={() => loadNext(tab)} />
         ) : (
-          <ItemCard current={current} chosen={chosen} reveal={reveal} onPick={submit} onNext={() => loadNext(tab)} />
+          <ItemCard current={current} chosen={chosen} reveal={reveal} onPick={itemComboSubmit} onNext={() => loadNext(tab)} />
         )}
       </div>
     </div>
@@ -1045,7 +1061,7 @@ function Stat({ label, value, accent }) {
 
 function CardShell({ children }) {
   return (
-    <div style={{ height: 540, borderRadius: 24, padding: 22,
+    <div style={{ minHeight: 540, borderRadius: 24, padding: 22,
       background: `linear-gradient(160deg, ${T.card2}, ${T.card1})`, border: `1px solid ${T.line}`,
       boxShadow: "0 30px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
       display: "flex", flexDirection: "column" }}>
@@ -1124,27 +1140,30 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
         <div style={{ marginTop: 4, fontSize: 13, color: T.muted }}>{t.item_q}</div>
       </div>
 
-      {/* 3템 조합 선택지 */}
+      {/* 선택지 — reveal이면 각 조합에 평균순위/BEST 배지 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
         {current.options.map((opt) => {
-          const st = reveal?.stats?.options?.find((o) => o.combo === opt.combo);
           let border = T.line, bg = "rgba(255,255,255,0.03)", glow = "none", badge = null;
           if (reveal) {
-            if (st?.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; glow = `0 0 0 1px ${T.gold}`; badge = "BEST"; }
+            if (opt.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; glow = `0 0 0 1px ${T.gold}`; badge = "BEST"; }
             else if (opt.combo === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; }
           }
           return (
-            <button key={opt.combo} disabled={!!reveal} onClick={() => onPick(opt.combo, opt.combo)}
-              style={{ appearance: "none", textAlign: "left", cursor: reveal ? "default" : "pointer",
+            <button key={opt.combo} disabled={!!reveal}
+              onClick={() => onPick(opt.combo)}
+              style={{
+                appearance: "none", cursor: reveal ? "default" : "pointer",
                 borderRadius: 14, border: `1px solid ${border}`, background: bg, boxShadow: glow,
-                padding: "13px 15px", color: T.text, fontFamily: T.fontKR,
-                display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {renderComboIcons(opt.items, reveal && st?.is_best)}
-              {reveal && st?.avg_placement != null && (
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                padding: "13px 15px", color: T.text,
+                display: "flex", alignItems: "center",
+                justifyContent: reveal ? "space-between" : "center",
+              }}>
+              {renderComboIcons(opt.items, reveal && opt.is_best)}
+              {reveal && (
+                <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   {badge && <span style={{ fontFamily: T.fontDisplay, fontSize: 10, fontWeight: 700, color: T.gold }}>{badge}</span>}
-                  <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: st.is_best ? T.gold : T.muted }}>
-                    {st.avg_placement.toFixed(2)}
+                  <span style={{ fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700, color: opt.is_best ? T.gold : T.muted }}>
+                    {opt.avg_placement?.toFixed(2)}
                   </span>
                 </span>
               )}
@@ -1153,36 +1172,27 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
         })}
       </div>
 
-      {/* 결과 */}
+      {/* 결과 영역 */}
       <div style={{ marginTop: "auto", paddingTop: 16 }}>
         {reveal ? (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontWeight: 800, fontSize: 16, color: reveal.correct ? T.teal : T.red }}>
+            {/* 정답/오답 문구 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+              fontWeight: 800, fontSize: 16, color: reveal.correct ? T.teal : T.red }}>
               <span style={{ fontFamily: T.fontDisplay }}>{reveal.correct ? t.correct : t.wrong}</span>
-              <span style={{ color: T.muted, fontWeight: 500, fontSize: 13 }}>
-                {reveal.correct
-                  ? fmt(t.item_best_combo, { avg: best?.avg_placement?.toFixed(2), n: best?.picks })
-                  : fmt(t.item_best_wrong_combo, { avg: yours?.avg_placement?.toFixed(2) })}
-              </span>
             </div>
 
-            {/* 정답 조합 아이콘 (텍스트로 조합 이름은 길어서 아이콘으로) */}
-            {best && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, color: T.muted }}>
-                <span>{t.item_best_label}</span>
-                {renderComboIcons(best.items, true)}
-              </div>
-            )}
-
             {/* 히든픽 */}
-            {hidden && (
-              <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 12, background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`,
-                display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
-                <span>💡 <b style={{ color: T.violet }}>{t.hidden_pick}</b></span>
-                {renderComboIcons(hidden.items, false)}
-                <span style={{ color: T.muted }}>
-                  {fmt(t.item_hidden_combo, { avg: hidden.avg_placement?.toFixed(2), n: hidden.picks })}
+            {current.hidden && (
+              <div style={{ marginBottom: 12, padding: "11px 13px", borderRadius: 12,
+                background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: T.violet, fontWeight: 700 }}>💎 {t.hidden_pick}</span>
+                {renderComboIcons(current.hidden.items, false)}
+                <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: T.violet }}>
+                  {current.hidden.avg?.toFixed(2)}
                 </span>
+                <span style={{ fontSize: 11, color: T.muted }}>({current.hidden.n})</span>
               </div>
             )}
 
