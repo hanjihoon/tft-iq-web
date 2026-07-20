@@ -452,9 +452,20 @@ function AppMain() {
         const carry = p.prompt?.carry ?? { name: "?" };
         card = {
           id: p.id, type, patch: p.patch, carry,
-          options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
+          options: (p.options ?? []).map((o) => ({
+            combo: o.combo,
+            items: o.items,           // ← items 보존 (핵심!)
+            picks: o.picks,
+            is_best: o.is_best,
+            avg_placement: o.avg_placement,
+          })),
           hidden: p.stats?.hidden_pick
-            ? { id: p.stats.hidden_pick.id, name: p.stats.hidden_pick.name, avg: p.stats.hidden_pick.avg_placement, n: p.stats.hidden_pick.sample_size }
+            ? {
+                combo: p.stats.hidden_pick.combo,
+                items: p.stats.hidden_pick.items,   // ← 히든픽도 items
+                avg: p.stats.hidden_pick.avg_placement,
+                n: p.stats.hidden_pick.sample_size ?? p.stats.hidden_pick.picks,
+              }
             : null,
         };
       }
@@ -1044,13 +1055,49 @@ function CardShell({ children }) {
 }
 
 function ItemCard({ current, chosen, reveal, onPick, onNext }) {
-  const { t } = useContext(LangContext); 
-  const best = reveal?.stats?.find((s) => s.is_best);
-  const yours = reveal?.stats?.find((s) => s.id === chosen);
+  const { t } = useContext(LangContext);
   const costMap = useContext(CostContext);
   const carryCost = costColor(costMap[current.carry.id]);
   const unitInfo = useContext(UnitInfoContext);
-  const itemInfo = useContext(ItemInfoContext);
+
+  const carryName = unitInfo[current.carry.id]?.name ?? current.carry.name;
+
+  // 정답/선택 조합 찾기 (reveal 시)
+  const best = reveal?.stats?.options?.find((o) => o.is_best);
+  const yours = reveal?.stats?.options?.find((o) => o.combo === chosen);
+  const hidden = reveal?.stats?.hidden_pick;
+
+  console.log("opt:", JSON.stringify(current.options?.[0]));
+
+  // 3템 조합 아이콘 렌더 헬퍼
+  const renderComboIcons = (items, highlight) => {
+    if (!Array.isArray(items)) return null;
+    return (
+      <span style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",   // 가운데 정렬
+        gap: 8,                      // 아이콘 간격 (4→8)
+        width: "100%"                // 버튼 안에서 꽉 차게
+      }}>
+        {items.map((it, i) => (
+          <img
+            key={i}
+            src={it.icon}
+            alt={it.name}
+            title={it.name}           // 이름은 hover로만
+            width={40}                // 28→40 (크게)
+            height={40}
+            style={{
+              borderRadius: 8,
+              border: highlight ? `2px solid ${T.gold}` : `1px solid ${T.line}`,
+            }}
+            onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+          />
+        ))}
+      </span>
+    );
+  };
 
   return (
     <CardShell>
@@ -1059,6 +1106,8 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
           border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px" }}>PATCH {current.patch}</span>
         <span style={{ fontSize: 11, color: T.muted }}>{t.item_pick}</span>
       </div>
+
+      {/* 캐리 유닛 */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 18, marginBottom: 6 }}>
         <div style={{ position: "relative", width: 92, height: 92 }}>
           <div style={{ position: "absolute", inset: -3, clipPath: HEX, background: carryCost ?? `linear-gradient(135deg, ${T.violet}, ${T.gold})` }} />
@@ -1067,66 +1116,76 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
             display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 34 }}>
             {unitIcon(current.carry.id) ? (
               <img src={unitIcon(current.carry.id)} alt="" width={92} height={92} style={{ objectFit: "cover" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentNode.textContent = initial(name); }} />
-            ) : initial(name)}
+                onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentNode.textContent = initial(carryName); }} />
+            ) : initial(carryName)}
           </div>
         </div>
-        <div style={{ marginTop: 14, fontWeight: 800, fontSize: 22 }}>{unitInfo[current.carry.id]?.name ?? current.carry.name}</div>
+        <div style={{ marginTop: 14, fontWeight: 800, fontSize: 22 }}>{carryName}</div>
         <div style={{ marginTop: 4, fontSize: 13, color: T.muted }}>{t.item_q}</div>
       </div>
+
+      {/* 3템 조합 선택지 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
         {current.options.map((opt) => {
-          const st = reveal?.stats?.find((s) => s.id === opt.id);
+          const st = reveal?.stats?.options?.find((o) => o.combo === opt.combo);
           let border = T.line, bg = "rgba(255,255,255,0.03)", glow = "none", badge = null;
           if (reveal) {
             if (st?.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; glow = `0 0 0 1px ${T.gold}`; badge = "BEST"; }
-            else if (opt.id === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; }
+            else if (opt.combo === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; }
           }
           return (
-            <button key={opt.id} disabled={!!reveal} onClick={() => onPick(opt.name, opt.id)}
+            <button key={opt.combo} disabled={!!reveal} onClick={() => onPick(opt.combo, opt.combo)}
               style={{ appearance: "none", textAlign: "left", cursor: reveal ? "default" : "pointer",
                 borderRadius: 14, border: `1px solid ${border}`, background: bg, boxShadow: glow,
-                padding: "13px 15px", color: T.text, fontFamily: T.fontKR, fontSize: 15, fontWeight: 600,
+                padding: "13px 15px", color: T.text, fontFamily: T.fontKR,
                 display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {opt.icon ? (
-                  <img src={opt.icon} alt="" width={28} height={28}
-                    style={{ borderRadius: 6, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1px solid ${T.line}` }} />
-                ) : (
-                  <span style={{ width: 12, height: 12, clipPath: HEX, background: reveal && st?.is_best ? T.gold : T.violet }} />
-                )}
-                {itemInfo[opt.id] ?? opt.name ?? opt.id}
-              </span>
-              {reveal && st?.avg != null && (
+              {renderComboIcons(opt.items, reveal && st?.is_best)}
+              {reveal && st?.avg_placement != null && (
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {badge && <span style={{ fontFamily: T.fontDisplay, fontSize: 10, fontWeight: 700, color: T.gold }}>{badge}</span>}
-                  <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: st.is_best ? T.gold : T.muted }}>{st.avg.toFixed(2)}</span>
+                  <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: st.is_best ? T.gold : T.muted }}>
+                    {st.avg_placement.toFixed(2)}
+                  </span>
                 </span>
               )}
             </button>
           );
         })}
       </div>
+
+      {/* 결과 */}
       <div style={{ marginTop: "auto", paddingTop: 16 }}>
         {reveal ? (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontWeight: 800, fontSize: 16, color: reveal.correct ? T.teal : T.red }}>
               <span style={{ fontFamily: T.fontDisplay }}>{reveal.correct ? t.correct : t.wrong}</span>
               <span style={{ color: T.muted, fontWeight: 500, fontSize: 13 }}>
-                {reveal.correct ? fmt(t.item_best, { name: itemInfo[best.id] ?? best.name ?? best.id, avg: best?.avg?.toFixed(2), n: best?.n,})
-                  : fmt(t.item_best_wrong, { name: itemInfo[best.id] ?? best.name ?? best.id,}) + fmt(t.item_best_wrong_yours, { avg: yours?.avg,})}
+                {reveal.correct
+                  ? fmt(t.item_best_combo, { avg: best?.avg_placement?.toFixed(2), n: best?.picks })
+                  : fmt(t.item_best_wrong_combo, { avg: yours?.avg_placement?.toFixed(2) })}
               </span>
             </div>
-            {current.hidden && (
-              <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 12, background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`, fontSize: 12 }}>
-                💡 <b style={{ color: T.violet }}>{t.hidden_pick} </b> &nbsp;
-                {fmt(t.item_hidden, { 
-                  name: itemInfo[current.hidden.id] ?? current.hidden.name ?? current.hidden.id, 
-                  avg: current.hidden.avg?.toFixed(2), 
-                  n: current.hidden.n,
-                  })}
+
+            {/* 정답 조합 아이콘 (텍스트로 조합 이름은 길어서 아이콘으로) */}
+            {best && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, color: T.muted }}>
+                <span>{t.item_best_label}</span>
+                {renderComboIcons(best.items, true)}
               </div>
             )}
+
+            {/* 히든픽 */}
+            {hidden && (
+              <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 12, background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`,
+                display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
+                <span>💡 <b style={{ color: T.violet }}>{t.hidden_pick}</b></span>
+                {renderComboIcons(hidden.items, false)}
+                <span style={{ color: T.muted }}>
+                  {fmt(t.item_hidden_combo, { avg: hidden.avg_placement?.toFixed(2), n: hidden.picks })}
+                </span>
+              </div>
+            )}
+
             <NextButton onNext={onNext} />
             <ReportLink puzzleId={current.id} />
           </div>
