@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './tft-iq-quiz-card.jsx'; // ← 이 줄
+import App from './tft-iq-quiz-card.jsx';
 
 
 // 1. 아래 패키지를 import 하세요

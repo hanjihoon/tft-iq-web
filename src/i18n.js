@@ -43,6 +43,7 @@ export const STRINGS = {
     home_review: "🔁 틀린 문제 {n}개 복습하기 →",
     home_meta: "📋 메타 순위 보기", home_stats: "📊 내 기록", home_share: "📤 공유하기",
     home_hint: "언제든 상단 탭이나 ← 버튼으로 바꿀 수 있어요",
+    home_specials: "특수 아이템",
     // 통계
     stats_title: "📊 내 기록", loading: "불러오는 중…",
     stats_empty: "아직 푼 문제가 없어요.\n퀴즈를 풀면 여기에 기록이 쌓여요!",
@@ -75,6 +76,13 @@ export const STRINGS = {
     done_review_msg: "틀렸던 문제를 모두 다시 맞혔어요.\n잘하고 있어요!",
     done_all_msg: "이 유형을 다 풀었어요.\n다른 탭을 풀거나 새 패치를 기다려보세요.",
     retry: "다시 시도",
+
+    specials_title: "캐리별 특수 아이템",
+    specials_all: "전체 캐리",
+    specials_artifact: "유물",
+    specials_emblem: "상징",
+    specials_none: "표본이 충분한 특수 아이템이 없습니다",
+
   },
 
   en_us: {
@@ -100,6 +108,7 @@ export const STRINGS = {
     home_review: "🔁 Review {n} missed questions →",
     home_meta: "📋 View Meta Tiers", home_stats: "📊 My Stats", home_share: "📤 Share",
     home_hint: "Switch anytime with the top tabs or the ← button",
+    home_specials: "Special Items",
     stats_title: "📊 My Stats", loading: "Loading…",
     stats_empty: "No questions solved yet.\nSolve quizzes and your stats will appear here!",
     stats_accuracy: "Overall Accuracy", stats_count: "{correct} / {total} questions",
@@ -125,6 +134,13 @@ export const STRINGS = {
     done_review_msg: "You got all your missed questions right.\nGreat job!",
     done_all_msg: "You've finished this type.\nTry another tab or wait for a new patch.",
     retry: "Retry",
+
+    specials_title: "Special Items by Carry",
+    specials_all: "All Carries",
+    specials_artifact: "Artifacts",
+    specials_emblem: "Emblems",
+    specials_none: "No special items with sufficient sample size",
+    
   },
 
   ja_jp: {
@@ -150,6 +166,7 @@ export const STRINGS = {
     home_review: "🔁 間違えた問題を{n}問復習する →",
     home_meta: "📋 メタランキング", home_stats: "📊 マイ記録", home_share: "📤 共有する",
     home_hint: "上部タブや←ボタンでいつでも切り替えできます",
+    home_specials: "特殊アイテム",
     stats_title: "📊 マイ記録", loading: "読み込み中…",
     stats_empty: "まだ解答した問題がありません。\nクイズを解くと記録が貯まります！",
     stats_accuracy: "全体の正答率", stats_count: "{correct} / {total} 問",
@@ -175,6 +192,13 @@ export const STRINGS = {
     done_review_msg: "間違えた問題をすべて正解しました。\nその調子です！",
     done_all_msg: "このタイプをすべて解きました。\n他のタブを解くか新パッチをお待ちください。",
     retry: "再試行",
+
+    specials_title: "キャリー別 特殊アイテム",
+    specials_all: "全キャリー",
+    specials_artifact: "アーティファクト",
+    specials_emblem: "エンブレム",
+    specials_none: "十分なサンプル数の特殊アイテムがありません",
+
   },
 
   zh_cn: {
@@ -200,6 +224,7 @@ export const STRINGS = {
     home_review: "🔁 复习{n}道错题 →",
     home_meta: "📋 查看meta梯度", home_stats: "📊 我的记录", home_share: "📤 分享",
     home_hint: "随时可用顶部标签或←按钮切换",
+    home_specials: "特殊装备",
     stats_title: "📊 我的记录", loading: "加载中…",
     stats_empty: "还没有答过题。\n做测验后这里会显示记录！",
     stats_accuracy: "总正确率", stats_count: "{correct} / {total} 题",
@@ -225,6 +250,13 @@ export const STRINGS = {
     done_review_msg: "你答对了所有错题。\n做得很好！",
     done_all_msg: "你已完成这个类型。\n试试其他标签或等待新版本。",
     retry: "重试",
+
+    specials_title: "各核心的特殊装备",
+    specials_all: "全部核心",
+    specials_artifact: "神器",
+    specials_emblem: "纹章",
+    specials_none: "没有样本量足够的特殊装备",
+
   },
 
   pt_br: {
@@ -250,6 +282,7 @@ export const STRINGS = {
     home_review: "🔁 Revisar {n} questões erradas →",
     home_meta: "📋 Ver Tiers do Meta", home_stats: "📊 Minhas Stats", home_share: "📤 Compartilhar",
     home_hint: "Troque quando quiser pelas abas ou pelo botão ←",
+    home_specials: "Itens Especiais",
     stats_title: "📊 Minhas Stats", loading: "Carregando…",
     stats_empty: "Nenhuma questão resolvida ainda.\nResolva quizzes e suas stats aparecerão aqui!",
     stats_accuracy: "Precisão Geral", stats_count: "{correct} / {total} questões",
@@ -275,6 +308,12 @@ export const STRINGS = {
     done_review_msg: "Você acertou todas as questões erradas.\nMandou bem!",
     done_all_msg: "Você terminou este tipo.\nTente outra aba ou aguarde um novo patch.",
     retry: "Tentar de novo",
+
+    specials_title: "Itens Especiais por Carry",
+    specials_all: "Todos os Carries",
+    specials_artifact: "Artefatos",
+    specials_emblem: "Emblemas",
+    specials_none: "Nenhum item especial com amostra suficiente",
   },
 
   es_mx: {
@@ -300,6 +339,7 @@ export const STRINGS = {
     home_review: "🔁 Repasar {n} preguntas falladas →",
     home_meta: "📋 Ver Tiers del Meta", home_stats: "📊 Mis Stats", home_share: "📤 Compartir",
     home_hint: "Cambia cuando quieras con las pestañas o el botón ←",
+    home_specials: "Objetos Especiales",
     stats_title: "📊 Mis Stats", loading: "Cargando…",
     stats_empty: "Aún no has resuelto preguntas.\n¡Resuelve quizzes y tus stats aparecerán aquí!",
     stats_accuracy: "Precisión General", stats_count: "{correct} / {total} preguntas",
@@ -325,6 +365,13 @@ export const STRINGS = {
     done_review_msg: "Acertaste todas las preguntas falladas.\n¡Bien hecho!",
     done_all_msg: "Terminaste este tipo.\nPrueba otra pestaña o espera un nuevo parche.",
     retry: "Reintentar",
+
+    specials_title: "Objetos Especiales por Carry",
+    specials_all: "Todos los Carries",
+    specials_artifact: "Artefactos",
+    specials_emblem: "Emblemas",
+    specials_none: "No hay objetos especiales con muestra suficiente",
+
   },
 
   fr_fr: {
@@ -350,6 +397,7 @@ export const STRINGS = {
     home_review: "🔁 Réviser {n} questions ratées →",
     home_meta: "📋 Voir les Tiers du Meta", home_stats: "📊 Mes Stats", home_share: "📤 Partager",
     home_hint: "Change à tout moment via les onglets ou le bouton ←",
+    home_specials: "Objets Spéciaux",
     stats_title: "📊 Mes Stats", loading: "Chargement…",
     stats_empty: "Aucune question résolue pour l'instant.\nRésous des quiz et tes stats apparaîtront ici !",
     stats_accuracy: "Précision Globale", stats_count: "{correct} / {total} questions",
@@ -375,6 +423,12 @@ export const STRINGS = {
     done_review_msg: "Tu as réussi toutes tes questions ratées.\nBeau travail !",
     done_all_msg: "Tu as fini ce type.\nEssaie un autre onglet ou attends un nouveau patch.",
     retry: "Réessayer",
+
+    specials_title: "Objets Spéciaux par Carry",
+    specials_all: "Tous les Carries",
+    specials_artifact: "Artefacts",
+    specials_emblem: "Emblèmes",
+    specials_none: "Aucun objet spécial avec un échantillon suffisant",
   },
 
   de_de: {
@@ -400,6 +454,7 @@ export const STRINGS = {
     home_review: "🔁 {n} falsche Fragen wiederholen →",
     home_meta: "📋 Meta-Tiers ansehen", home_stats: "📊 Meine Statistik", home_share: "📤 Teilen",
     home_hint: "Jederzeit über die Tabs oben oder ← wechseln",
+    home_specials: "Spezialgegenstände",
     stats_title: "📊 Meine Statistik", loading: "Wird geladen…",
     stats_empty: "Noch keine Fragen gelöst.\nLöse Quizze und deine Statistik erscheint hier!",
     stats_accuracy: "Gesamtgenauigkeit", stats_count: "{correct} / {total} Fragen",
@@ -425,6 +480,12 @@ export const STRINGS = {
     done_review_msg: "Du hast alle falschen Fragen richtig gelöst.\nGut gemacht!",
     done_all_msg: "Du hast diesen Typ beendet.\nProbiere einen anderen Tab oder warte auf einen neuen Patch.",
     retry: "Erneut versuchen",
+
+    specials_title: "Spezialgegenstände nach Carry",
+    specials_all: "Alle Carries",
+    specials_artifact: "Artefakte",
+    specials_emblem: "Embleme",
+    specials_none: "Keine Spezialgegenstände mit ausreichender Stichprobe",
   },
 
   ru_ru: {
@@ -450,6 +511,7 @@ export const STRINGS = {
     home_review: "🔁 Повторить {n} ошибок →",
     home_meta: "📋 Тир-лист меты", home_stats: "📊 Моя статистика", home_share: "📤 Поделиться",
     home_hint: "Переключайтесь в любой момент вкладками сверху или кнопкой ←",
+    home_specials: "Особые предметы",
     stats_title: "📊 Моя статистика", loading: "Загрузка…",
     stats_empty: "Пока нет решённых вопросов.\nРешайте викторины — статистика появится здесь!",
     stats_accuracy: "Общая точность", stats_count: "{correct} / {total} вопросов",
@@ -475,6 +537,13 @@ export const STRINGS = {
     done_review_msg: "Вы правильно решили все свои ошибки.\nОтличная работа!",
     done_all_msg: "Вы прошли этот тип.\nПопробуйте другую вкладку или ждите новый патч.",
     retry: "Повторить",
+
+    specials_title: "Особые предметы по кэрри",
+    specials_all: "Все кэрри",
+    specials_artifact: "Артефакты",
+    specials_emblem: "Эмблемы",
+    specials_none: "Нет особых предметов с достаточной выборкой",
+
   },
 
   vi_vn: {
@@ -500,6 +569,7 @@ export const STRINGS = {
     home_review: "🔁 Ôn {n} câu sai →",
     home_meta: "📋 Xem bảng meta", home_stats: "📊 Thống kê của tôi", home_share: "📤 Chia sẻ",
     home_hint: "Đổi bất cứ lúc nào bằng tab trên cùng hoặc nút ←",
+    home_specials: "Trang Bị Đặc Biệt",
     stats_title: "📊 Thống kê của tôi", loading: "Đang tải…",
     stats_empty: "Chưa giải câu nào.\nGiải quiz và thống kê sẽ hiện ở đây!",
     stats_accuracy: "Độ chính xác tổng", stats_count: "{correct} / {total} câu",
@@ -525,6 +595,12 @@ export const STRINGS = {
     done_review_msg: "Bạn đã trả lời đúng tất cả câu sai.\nLàm tốt lắm!",
     done_all_msg: "Bạn đã giải hết loại này.\nThử tab khác hoặc chờ phiên bản mới.",
     retry: "Thử lại",
+
+    specials_title: "Trang Bị Đặc Biệt theo Carry",
+    specials_all: "Tất Cả Carry",
+    specials_artifact: "Cổ Vật",
+    specials_emblem: "Biểu Tượng",
+    specials_none: "Không có trang bị đặc biệt đủ mẫu",
   },
 
   th_th: {
@@ -550,6 +626,7 @@ export const STRINGS = {
     home_review: "🔁 ทบทวน {n} ข้อที่ผิด →",
     home_meta: "📋 ดูอันดับเมตา", home_stats: "📊 สถิติของฉัน", home_share: "📤 แชร์",
     home_hint: "สลับได้ตลอดด้วยแท็บด้านบนหรือปุ่ม ←",
+    home_specials: "ไอเทมพิเศษ",
     stats_title: "📊 สถิติของฉัน", loading: "กำลังโหลด…",
     stats_empty: "ยังไม่มีข้อที่ทำ\nทำควิซแล้วสถิติจะแสดงที่นี่!",
     stats_accuracy: "ความแม่นยำรวม", stats_count: "{correct} / {total} ข้อ",
@@ -575,6 +652,12 @@ export const STRINGS = {
     done_review_msg: "คุณตอบข้อที่เคยผิดถูกหมดแล้ว\nเก่งมาก!",
     done_all_msg: "คุณทำประเภทนี้ครบแล้ว\nลองแท็บอื่นหรือรอแพตช์ใหม่",
     retry: "ลองใหม่",
+
+    specials_title: "ไอเทมพิเศษตามตัวแคร์รี่",
+    specials_all: "แคร์รี่ทั้งหมด",
+    specials_artifact: "อาร์ติแฟกต์",
+    specials_emblem: "เอมเบล็ม",
+    specials_none: "ไม่มีไอเทมพิเศษที่มีจำนวนตัวอย่างเพียงพอ",
   },
 };
 

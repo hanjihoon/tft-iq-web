@@ -18,6 +18,9 @@ const TraitInfoContext = createContext({});
 const ItemInfoContext = createContext({});
 const LangContext = createContext({ lang: "ko_kr", changeLang: () => {} });
 
+let specialsListCache = null;
+const specialsDetailCache = {};
+
 function LangSelector() {
   const { lang, changeLang } = useContext(LangContext);
   const LANGS = {
@@ -208,25 +211,6 @@ export default function App() {
   );
 }
 
-
-// 앱 공유 (모바일 네이티브 공유 시트 / 데스크탑 클립보드 폴백)
-async function shareApp() {
-  const data = {
-    title: "TFT IQ",
-    text: t.share_text,
-    url: "https://tft-iq-web.vercel.app",
-  };
-  try {
-    if (navigator.share) {
-      await navigator.share(data);
-    } else {
-      await navigator.clipboard.writeText(`${data.text} ${data.url}`);
-      alert(t.share_copied);
-    }
-  } catch (e) {
-    // 사용자 취소 등은 무시
-  }
-}
 const initial = (name) => name?.trim()?.[0] ?? "?";
 
 // 오답/문제 제보 (원클릭)
@@ -397,6 +381,7 @@ function AppMain() {
   const [reviewCounts, setReviewCounts] = useState({}); // {item_combine:N, deck_complete:M}
   const [showStats, setShowStats] = useState(false); // 통계 화면 표시
   const [showMeta, setShowMeta] = useState(false); // 메타 목록 화면 표시
+  const [showSpecials, setShowSpecials] = useState(false);
   const [queue, setQueue] = useState([]);
   const [reveal, setReveal] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -407,6 +392,7 @@ function AppMain() {
   const [loading, setLoading] = useState(true);
   const [allSolved, setAllSolved] = useState(false);
   const [meta, setMeta] = useState(null);
+  
 
   const current = queue[0];
 
@@ -593,6 +579,11 @@ function AppMain() {
     return <MetaListScreen onBack={() => setShowMeta(false)} />;
   }
 
+  // 특수템 화면
+  if (!mode && showSpecials) {
+    return <SpecialsScreen onBack={() => setShowSpecials(false)} />;
+  }
+
   // 홈 화면
   if (!mode) {
     return (
@@ -602,6 +593,7 @@ function AppMain() {
         onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); }}
         onStats={() => setShowStats(true)}
         onMeta={() => setShowMeta(true)}
+        onSpecials={() => setShowSpecials(true)}
       />
     );
   }
@@ -632,9 +624,6 @@ function AppMain() {
           <Stat label={t.streak} value={streak} accent={streak > 0 ? T.gold : T.muted} />
           <Stat label={t.best} value={best} accent={T.muted} />
           <Stat label={t.solved} value={solved} accent={T.muted} />
-          <button onClick={shareApp} title={t.share}
-            style={{ appearance: "none", cursor: "pointer", background: "transparent",
-              border: "none", color: T.violet, fontSize: 16, padding: 0, lineHeight: 1 }}>📤</button>
         </div>
       </div>
 
@@ -684,7 +673,7 @@ function AppMain() {
   );
 }
 
-function Home({ onSelect, onReview, reviewCounts, onStats, onMeta }) {
+function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials }) {
   const { t } = useContext(LangContext); 
 
   const modes = [
@@ -754,6 +743,17 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta }) {
             display: "flex", alignItems: "center", gap: 6 }}>
           {t.home_meta}
         </button>
+
+        {/* 특수템 버튼 */}
+        <button onClick={onSpecials}
+          style={{ appearance: "none", cursor: "pointer",
+            borderRadius: 12, border: `1px solid ${T.red}`,
+            background: "rgba(255,101,133,0.1)", color: T.red,
+            fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 6 }}>
+          💎 {t.home_specials ?? "특수 아이템"}
+        </button>
+
         <button onClick={onStats}
           style={{ appearance: "none", cursor: "pointer",
             borderRadius: 12, border: `1px solid ${T.gold}`,
@@ -761,14 +761,6 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta }) {
             fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
             display: "flex", alignItems: "center", gap: 6 }}>
           {t.home_stats}
-        </button>
-        <button onClick={shareApp}
-          style={{ appearance: "none", cursor: "pointer",
-            borderRadius: 12, border: `1px solid ${T.violet}`,
-            background: "rgba(139,108,255,0.1)", color: T.violet,
-            fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
-            display: "flex", alignItems: "center", gap: 6 }}>
-          {t.home_share}
         </button>
       </div>
       <div style={{ fontSize: 11, color: T.muted, marginTop: 16, textAlign: "center", lineHeight: 1.6 }}>
@@ -863,11 +855,15 @@ function StatsScreen({ onBack, onReset, onReview }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {stats.weak.map((w, i) => {
-                  const [type, id] = (w.group ?? "").split(":");
-                  const icon = type === "trait" ? traitInfo[id]?.icon 
-                              : type === "unit" ? unitInfo[id]?.icon 
+                  const icon = w.type === "deck_complete" ? traitInfo[w.group]?.icon 
+                              : w.type === "item_combine" ? unitInfo[w.group]?.icon 
                               : null;
-                  const name = resolveDeckLabel(w.group, unitInfo, traitInfo);
+                  const name = w.type === "deck_complete" ? resolveDeckLabel(w.group, unitInfo, traitInfo)
+                              : w.type === "item_combine" ? unitInfo[w.group]?.name ?? w.group
+                              : null;
+
+                  
+                  console.log("type: ", w);
 
                   return <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
                     borderRadius: 12, border: `1px solid ${T.line}`, padding: "10px 14px",
@@ -878,7 +874,7 @@ function StatsScreen({ onBack, onReset, onReview }) {
                       </span>
                       {icon && (
                         <img src={icon} alt="" width={20} height={20}
-                          style={type === "trait" 
+                          style={w.type === "deck_complete" 
                             ? { filter: "brightness(0) invert(1)" }  // 특성: 흰 실루엣
                             : { borderRadius: 4 }                     // 유닛: 그대로
                           }
@@ -1050,6 +1046,158 @@ function MetaUnit({ unit, onClick }) {
   );
 }
 
+function SpecialsScreen({ onBack }) {
+  const { t } = useContext(LangContext);
+  const unitInfo = useContext(UnitInfoContext);
+  const itemInfo = useContext(ItemInfoContext);
+
+  const [carryIds, setCarryIds] = useState(specialsListCache ?? []);
+  const [selected, setSelected] = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(specialsListCache === null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // 캐리 목록 — 캐시 없을 때만 fetch
+  useEffect(() => {
+    if (specialsListCache !== null) return;   // 이미 캐싱됨 → 스킵
+    fetch(`${API_BASE}/api/carry/specials-list`)
+      .then((r) => r.json())
+      .then((ids) => { specialsListCache = ids; setCarryIds(ids); })
+      .catch(() => setCarryIds([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // 캐리 선택 — 캐시 히트면 즉시, 아니면 fetch 후 캐싱
+  function selectCarry(cid) {
+    setSelected(cid);
+    if (specialsDetailCache[cid]) {
+      setData(specialsDetailCache[cid]);   // 캐시 히트 → 재요청 없음
+      return;
+    }
+    setDetailLoading(true);
+    fetch(`${API_BASE}/api/carry/${cid}/specials`)
+      .then((r) => r.json())
+      .then((d) => { specialsDetailCache[cid] = d; setData(d); })
+      .catch(() => setData(null))
+      .finally(() => setDetailLoading(false));
+  }
+
+  const renderItems = (items) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((it) => (
+          <div key={it.item_id} style={{ display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${T.line}` }}>
+            <img src={it.icon} alt={it.name} width={36} height={36}
+              style={{ borderRadius: 8, border: `1px solid ${T.line}` }}
+              onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+            <span style={{ fontFamily: T.fontDisplay, flex: 1, fontSize: 14, fontWeight: 600 }}>{itemInfo[it.item_id] ?? it.name}</span>
+            <span style={{ fontFamily: T.fontDisplay, fontSize: 15, fontWeight: 700, color: T.gold }}>
+              {it.avg_placement.toFixed(2)}
+            </span>
+            <span style={{ fontSize: 11, color: T.muted }}>({it.picks})</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      minHeight: "100%",
+      background: `radial-gradient(120% 80% at 50% -10%, ${T.bg2}, ${T.bg})`,
+      color: T.text, fontFamily: T.fontKR, padding: "40px 20px",
+    }}>
+      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        {/* 헤더 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button onClick={onBack} style={{ appearance: "none", background: "none",
+            border: `1px solid ${T.line}`, borderRadius: 10, color: T.text,
+            padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>
+            ← <span style={{ fontFamily: T.fontDisplay, flex: 1, fontSize: 12, fontWeight: 300 }}>Go Home</span>
+          </button>
+          <h2 style={{ fontFamily: T.fontDisplay, fontSize: 16, fontWeight: 800, margin: 0 }}>
+            {t.specials_title ?? "캐리별 특수 아이템"}
+          </h2>
+        </div>
+
+        {loading ? (
+          <div style={{ fontFamily: T.fontDisplay, textAlign: "center", color: T.muted, padding: 40 }}>...</div>
+        ) : selected ? (
+          <div>
+            <button onClick={() => { setSelected(null); setData(null); }}
+              style={{ appearance: "none", background: "none", border: "none",
+                color: T.muted, cursor: "pointer", fontSize: 13, marginBottom: 16 }}>
+              ← {t.specials_all ?? "전체 캐리"}
+            </button>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 20 }}>
+              {unitIcon(selected) && (
+                <img src={unitIcon(selected)} alt="" width={72} height={72}
+                  style={{ borderRadius: 12, objectFit: "cover" }} />
+              )}
+              <div style={{ marginTop: 10, fontWeight: 800, fontSize: 20 }}>
+                {unitInfo[selected]?.name ?? selected}
+              </div>
+            </div>
+
+            {detailLoading ? (
+              <div style={{ textAlign: "center", color: T.muted, padding: 20 }}>...</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {data?.artifacts?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.violet, marginBottom: 8 }}>
+                      💎 {t.specials_artifact ?? "유물"}
+                    </div>
+                    {renderItems(data.artifacts)}
+                  </div>
+                )}
+                {data?.emblems?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.teal, marginBottom: 8 }}>
+                      🔮 {t.specials_emblem ?? "상징"}
+                    </div>
+                    {renderItems(data.emblems)}
+                  </div>
+                )}
+                {!data?.artifacts?.length && !data?.emblems?.length && (
+                  <div style={{ textAlign: "center", color: T.muted, padding: 20, fontSize: 13 }}>
+                    {t.specials_none ?? "표본이 충분한 특수 아이템이 없습니다"}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))", gap: 10 }}>
+            {carryIds.map((cid) => (
+              <button key={cid} onClick={() => selectCarry(cid)}
+                style={{ appearance: "none", cursor: "pointer",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                  padding: "10px 4px", borderRadius: 12, border: `1px solid ${T.line}`,
+                  background: "rgba(255,255,255,0.03)", color: T.text }}>
+                {unitIcon(cid) ? (
+                  <img src={unitIcon(cid)} alt="" width={44} height={44}
+                    style={{ borderRadius: 8, objectFit: "cover" }} />
+                ) : (
+                  <span style={{ width: 44, height: 44 }} />
+                )}
+                <span style={{ fontSize: 10, color: T.muted, textAlign: "center",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                  {unitInfo[cid]?.name ?? cid}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value, accent }) {
   return (
     <div style={{ textAlign: "right" }}>
@@ -1082,8 +1230,6 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
   const best = reveal?.stats?.options?.find((o) => o.is_best);
   const yours = reveal?.stats?.options?.find((o) => o.combo === chosen);
   const hidden = reveal?.stats?.hidden_pick;
-
-  console.log("opt:", JSON.stringify(current.options?.[0]));
 
   // 3템 조합 아이콘 렌더 헬퍼
   const renderComboIcons = (items, highlight) => {
@@ -1221,7 +1367,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
   const traitInfo = useContext(TraitInfoContext);
 
   const label = resolveDeckLabel(current.deckLabel, unitInfo, traitInfo);
-  console.log("DeckCard:", Object.keys(unitInfo).length);
+
   return (
     <CardShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
