@@ -392,6 +392,8 @@ function AppMain() {
   const [loading, setLoading] = useState(true);
   const [allSolved, setAllSolved] = useState(false);
   const [meta, setMeta] = useState(null);
+  const [reviewGroup, setReviewGroup] = useState(null);
+  const [returnToStats, setReturnToStats] = useState(false);
   
 
   const current = queue[0];
@@ -402,73 +404,23 @@ function AppMain() {
     { key: "trait_quiz", label: t.tab_trait },
   ];
 
-  const loadNext = useCallback(async (forType, isReview) => {
-    const t = forType || tab;
-    const rev = isReview ?? reviewMode;
-    setReveal(null); setChosen(null); setAllSolved(false); setLoading(true);
-    if (USE_MOCK) { setLoading(false); return; }
-    try {
-      const modeParam = rev ? "&mode=review" : "";
-      const r = await fetch(`${API_BASE}/api/quiz/next?type=${t}${modeParam}`, {
-        headers: { "X-User-Id": getUserId() },
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      if (data.status === "all_solved") { setAllSolved(true); setLoading(false); return; }
-      const p = data.puzzle;
-      const type = p.type ?? t;
-      let card;
-      if (type === "deck_complete") {
-        card = {
-          id: p.id, type, patch: p.patch,
-          deckLabel: p.prompt?.deck_label ?? "?",
-          shown: p.prompt?.shown_units ?? [],
-          synergies: p.prompt?.synergies ?? [],
-          options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
-          deckAvg: p.stats?.deck_avg, deckGames: p.stats?.deck_games,
-        };
-      } else if (type === "trait_quiz") {
-        card = {
-          id: p.id, type, patch: p.patch,
-          unit: p.prompt?.unit ?? { name: "?" },
-          options: p.prompt?.options ?? [],   // 특성 보기 (문자열 배열)
-          answer: p.prompt?.answer ?? [],      // 정답 특성들 (문자열 배열)
-        };
-      } else {
-        const carry = p.prompt?.carry ?? { name: "?" };
-        card = {
-          id: p.id, type, patch: p.patch, carry,
-          options: (p.options ?? []).map((o) => ({
-            combo: o.combo,
-            items: o.items,           // ← items 보존 (핵심!)
-            picks: o.picks,
-            is_best: o.is_best,
-            avg_placement: o.avg_placement,
-          })),
-          hidden: p.stats?.hidden_pick
-            ? {
-                combo: p.stats.hidden_pick.combo,
-                items: p.stats.hidden_pick.items,   // ← 히든픽도 items
-                avg: p.stats.hidden_pick.avg_placement,
-                n: p.stats.hidden_pick.sample_size ?? p.stats.hidden_pick.picks,
-              }
-            : null,
-        };
-      }
-      setQueue([card]);
-      setError(null); setLoading(false);
-    } catch (e) {
-      setError(t.err_connect);
-      setLoading(false);
+  
+  const exitQuiz = () => {
+    setMode(null);
+    setReviewGroup(null);
+    if (returnToStats) {
+      setShowStats(true);        // 통계로 복귀
+      setReturnToStats(false);
+    } else {
+      setShowStats(false);       // 홈으로
     }
-  }, [tab, reviewMode]);
+  };
 
   useEffect(() => {
     if (!mode) return;
     setStreak(0); setSolved(0);
-    loadNext(tab, reviewMode);
-    /* eslint-disable-next-line */
-  }, [tab, mode, reviewMode]);
+    loadNext(tab, reviewMode, reviewGroup);
+  }, [tab, mode, reviewMode, reviewGroup]);
 
   useEffect(() => {
     if (!USE_MOCK) {
@@ -569,9 +521,76 @@ function AppMain() {
     finishReveal(correct, current.answer.join(", "), null);
   }
 
+  const loadNext = useCallback(async (forType, isReview, forGroup) => {
+    const t = forType || tab;
+    const rev = isReview ?? reviewMode;
+    setReveal(null); setChosen(null); setAllSolved(false); setLoading(true);
+    if (USE_MOCK) { setLoading(false); return; }
+    try {
+      const modeParam = rev ? `&mode=review${forGroup ? `&group=${encodeURIComponent(forGroup)}` : ""}` : "";
+      const r = await fetch(`${API_BASE}/api/quiz/next?type=${t}${modeParam}`, {
+        headers: { "X-User-Id": getUserId() },
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      if (data.status === "all_solved") { setAllSolved(true); setLoading(false); return; }
+      const p = data.puzzle;
+      const type = p.type ?? t;
+      let card;
+      if (type === "deck_complete") {
+        card = {
+          id: p.id, type, patch: p.patch,
+          deckLabel: p.prompt?.deck_label ?? "?",
+          shown: p.prompt?.shown_units ?? [],
+          synergies: p.prompt?.synergies ?? [],
+          options: (p.options ?? []).map((o) => ({ id: o.id, name: o.name, icon: o.icon })),
+          deckAvg: p.stats?.deck_avg, deckGames: p.stats?.deck_games,
+        };
+      } else if (type === "trait_quiz") {
+        card = {
+          id: p.id, type, patch: p.patch,
+          unit: p.prompt?.unit ?? { name: "?" },
+          options: p.prompt?.options ?? [],   // 특성 보기 (문자열 배열)
+          answer: p.prompt?.answer ?? [],      // 정답 특성들 (문자열 배열)
+        };
+      } else {
+        const carry = p.prompt?.carry ?? { name: "?" };
+        card = {
+          id: p.id, type, patch: p.patch, carry,
+          options: (p.options ?? []).map((o) => ({
+            combo: o.combo,
+            items: o.items,           // ← items 보존 (핵심!)
+            picks: o.picks,
+            is_best: o.is_best,
+            avg_placement: o.avg_placement,
+          })),
+          hidden: p.stats?.hidden_pick
+            ? {
+                combo: p.stats.hidden_pick.combo,
+                items: p.stats.hidden_pick.items,   // ← 히든픽도 items
+                avg: p.stats.hidden_pick.avg_placement,
+                n: p.stats.hidden_pick.sample_size ?? p.stats.hidden_pick.picks,
+              }
+            : null,
+        };
+      }
+      setQueue([card]);
+      setError(null); setLoading(false);
+    } catch (e) {
+      setError(t.err_connect);
+      setLoading(false);
+    }
+  }, [tab, reviewMode]);
+
+
   // 통계 화면
   if (!mode && showStats) {
-    return <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} onReview={(m) => { setShowStats(false); setReviewMode(true); setTab(m); setMode(m); }} />;
+    return (
+      <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} 
+        onReview={(m, grp) => { setShowStats(false); setReviewMode(true); setTab(m);
+          setMode(m); setReviewGroup(grp ?? null); setReturnToStats(true); }} 
+      />
+    );
   }
 
   // 메타 목록 화면
@@ -589,8 +608,8 @@ function AppMain() {
     return (
       <Home
         reviewCounts={reviewCounts}
-        onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); }}
-        onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); }}
+        onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); setReturnToStats(false); }}
+        onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); setReviewGroup(null); setReturnToStats(false)}}
         onStats={() => setShowStats(true)}
         onMeta={() => setShowMeta(true)}
         onSpecials={() => setShowSpecials(true)}
@@ -608,7 +627,7 @@ function AppMain() {
 
       <div style={{ width: "100%", maxWidth: 380, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setMode(null)} title={t.home}
+          <button onClick={exitQuiz} title={t.home}
             style={{ appearance: "none", cursor: "pointer", background: "transparent", border: "none",
               color: T.muted, fontSize: 20, padding: "0 4px 0 0", lineHeight: 1 }}>&larr;</button>
           <div style={{ width: 30, height: 30, clipPath: HEX, background: `linear-gradient(135deg, ${T.violet}, ${T.gold})` }} />
@@ -779,7 +798,6 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
 
 
 function StatsScreen({ onBack, onReset, onReview }) {
-
   const { t } = useContext(LangContext); 
 
   const [stats, setStats] = useState(null);
@@ -862,9 +880,6 @@ function StatsScreen({ onBack, onReset, onReview }) {
                               : w.type === "item_combine" ? unitInfo[w.group]?.name ?? w.group
                               : null;
 
-                  
-                  console.log("type: ", w);
-
                   return <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
                     borderRadius: 12, border: `1px solid ${T.line}`, padding: "10px 14px",
                     background: "rgba(255,101,133,0.06)" }}>
@@ -875,8 +890,8 @@ function StatsScreen({ onBack, onReset, onReview }) {
                       {icon && (
                         <img src={icon} alt="" width={20} height={20}
                           style={w.type === "deck_complete" 
-                            ? { filter: "brightness(0) invert(1)" }  // 특성: 흰 실루엣
-                            : { borderRadius: 4 }                     // 유닛: 그대로
+                            ? { filter: "brightness(0) invert(1)" }  
+                            : { borderRadius: 4 }                    
                           }
                           onError={(e) => { e.currentTarget.style.display = "none"; }}
                         />
@@ -891,7 +906,7 @@ function StatsScreen({ onBack, onReset, onReview }) {
                         })}
                       </span>
                     </div>
-                    <button onClick={() => onReview(w.type)}
+                    <button onClick={() => onReview(w.type, w.group)}
                       style={{ appearance: "none", cursor: "pointer", borderRadius: 8,
                         border: `1px solid ${T.teal}`, background: "transparent", color: T.teal,
                         fontFamily: T.fontKR, fontSize: 11, fontWeight: 600, padding: "5px 10px" }}>
@@ -910,7 +925,7 @@ function StatsScreen({ onBack, onReset, onReview }) {
             {t.stats_reset}
           </button>
         </div>
-      )}
+      )} 
     </div>
   );
 }
@@ -1116,7 +1131,7 @@ function SpecialsScreen({ onBack }) {
           <button onClick={onBack} style={{ appearance: "none", background: "none",
             border: `1px solid ${T.line}`, borderRadius: 10, color: T.text,
             padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>
-            ← <span style={{ fontFamily: T.fontDisplay, flex: 1, fontSize: 12, fontWeight: 300 }}>Go Home</span>
+            &larr;
           </button>
           <h2 style={{ fontFamily: T.fontDisplay, fontSize: 16, fontWeight: 800, margin: 0 }}>
             {t.specials_title ?? "캐리별 특수 아이템"}
@@ -1333,7 +1348,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
               <div style={{ marginBottom: 12, padding: "11px 13px", borderRadius: 12,
                 background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: T.violet, fontWeight: 700 }}>💎 {t.hidden_pick}</span>
+                <span style={{ fontSize: 12, color: T.violet, fontWeight: 700 }}>💎 {t.hidden_pick}  </span>
                 {renderComboIcons(current.hidden.items, false)}
                 <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: T.violet }}>
                   {current.hidden.avg?.toFixed(2)}
