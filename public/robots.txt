@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tft-iq-web.vercel.app/sitemap.xml

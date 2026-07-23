@@ -1,28 +1,50 @@
 <!DOCTYPE html>
-<html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- 검색 엔진 노출을 위한 핵심 메타 태그 -->
-    <title>TFT IQ - QUIZ & META DECK LIST</title>
-    <meta name="description" content="최신 롤토체스 시즌 아이템 조합, 시너지, 증강체 맞추기 퀴즈! 당신의 TFT 능력을 테스트하고 공략 정보를 확인하세요." />
-    <meta name="keywords" content="TFT 퀴즈, 롤토체스 퀴즈, 롤토체스 테스트, TFT 공략, 롤토체스 시즌" />
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- 카카오톡, 디스코드, 페이스북 공유 시 예쁘게 나오게 하는 Open Graph 태그 -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="TFT 롤토체스 시즌 퀴즈 - 내 티어 테스트하기" />
-    <meta property="og:description" content="방금 롤토체스 퀴즈 풀고 내 티어 확인 완료! 당신의 TFT 실력은 어느 정도인가요?" />
-    <meta property="og:image" content="https://vercel.app" /> <!-- 퀴즈 대표 이미지 경로 -->
-    <meta property="og:url" content="https://vercel.app" />
+  <!-- ─────────────────────────────────────────────────────────
+       Search / social metadata.
+       English is the base language: the widest audience for a
+       single set of og tags (one URL = one preview everywhere).
+       The app itself still detects browser language and renders
+       Korean, Japanese, etc. Only the preview is fixed.
+       ───────────────────────────────────────────────────────── -->
 
-    <!-- 트위터(X) 공유용 태그 -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="TFT 롤토체스 시즌 퀴즈" />
-    <meta name="twitter:description" content="당신의 TFT 능력을 테스트해보세요!" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <title>TFT IQ — Korean Challenger Meta Quiz</title>
+  <meta name="description" content="Learn the TFT meta from Korea's top 1500 players. Quiz yourself on core item builds, comps, and traits — every answer backed by average placement and sample size. Free, updated every patch." />
+
+  <link rel="canonical" href="https://tft-iq-web.vercel.app/" />
+
+  <!-- Open Graph — Reddit, Discord, Facebook, KakaoTalk -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TFT IQ" />
+  <meta property="og:url" content="https://tft-iq-web.vercel.app/" />
+  <meta property="og:title" content="TFT IQ — Korean Challenger Meta Quiz" />
+  <meta property="og:description" content="Korean challengers built this. Can you name the third? Quiz yourself on the meta with real match data from Korea's top 1500." />
+  <meta property="og:image" content="https://tft-iq-web.vercel.app/tft-iq-image-en.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Two core items and a question mark — TFT IQ, built on Korea top 1500 match data." />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TFT IQ — Korean Challenger Meta Quiz" />
+  <meta name="twitter:description" content="Korean challengers built this. Can you name the third?" />
+  <meta name="twitter:image" content="https://tft-iq-web.vercel.app/tft-iq-image-en.png" />
+
+  <!-- Browser chrome color on mobile — matches the app background -->
+  <meta name="theme-color" content="#0a0c13" />
+
+  <!-- Keep whatever favicon lines you already have here -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- ── Keep your existing Vite entry / font links below ── -->
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
 </html>
