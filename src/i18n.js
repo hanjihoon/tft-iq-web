@@ -82,6 +82,9 @@ export const STRINGS = {
     specials_artifact: "유물",
     specials_emblem: "상징",
     specials_none: "표본이 충분한 특수 아이템이 없습니다",
+    search_carry: "캐리 검색",
+    search_none :"검색 결과가 없습니다",
+
 
   },
 
@@ -140,6 +143,8 @@ export const STRINGS = {
     specials_artifact: "Artifacts",
     specials_emblem: "Emblems",
     specials_none: "No special items with sufficient sample size",
+    search_carry: "Search carry",
+    search_none : "No results",
     
   },
 
@@ -198,6 +203,8 @@ export const STRINGS = {
     specials_artifact: "アーティファクト",
     specials_emblem: "エンブレム",
     specials_none: "十分なサンプル数の特殊アイテムがありません",
+    search_carry: "キャリー検索",
+    search_none : "検索結果がありません",
 
   },
 
@@ -256,6 +263,8 @@ export const STRINGS = {
     specials_artifact: "神器",
     specials_emblem: "纹章",
     specials_none: "没有样本量足够的特殊装备",
+    search_carry: "搜索核心",
+    search_none : "没有搜索结果",
 
   },
 
@@ -314,6 +323,9 @@ export const STRINGS = {
     specials_artifact: "Artefatos",
     specials_emblem: "Emblemas",
     specials_none: "Nenhum item especial com amostra suficiente",
+    search_carry: "Buscar carry",
+    search_none : "Nenhum resultado",
+
   },
 
   es_mx: {
@@ -371,6 +383,8 @@ export const STRINGS = {
     specials_artifact: "Artefactos",
     specials_emblem: "Emblemas",
     specials_none: "No hay objetos especiales con muestra suficiente",
+    search_carry: "Buscar carry",
+    search_none : "Sin resultados",
 
   },
 
@@ -429,6 +443,9 @@ export const STRINGS = {
     specials_artifact: "Artefacts",
     specials_emblem: "Emblèmes",
     specials_none: "Aucun objet spécial avec un échantillon suffisant",
+    search_carry: "Rechercher un carry",
+    search_none : "Aucun résultat",
+
   },
 
   de_de: {
@@ -486,6 +503,9 @@ export const STRINGS = {
     specials_artifact: "Artefakte",
     specials_emblem: "Embleme",
     specials_none: "Keine Spezialgegenstände mit ausreichender Stichprobe",
+    search_carry: "Carry suchen",
+    search_none : "Keine Ergebnisse",
+
   },
 
   ru_ru: {
@@ -543,6 +563,8 @@ export const STRINGS = {
     specials_artifact: "Артефакты",
     specials_emblem: "Эмблемы",
     specials_none: "Нет особых предметов с достаточной выборкой",
+    search_carry: "Поиск кэрри",
+    search_none : "Ничего не найдено",
 
   },
 
@@ -601,6 +623,9 @@ export const STRINGS = {
     specials_artifact: "Cổ Vật",
     specials_emblem: "Biểu Tượng",
     specials_none: "Không có trang bị đặc biệt đủ mẫu",
+    search_carry: "Tìm carry",
+    search_none : "Không có kết quả",
+
   },
 
   th_th: {
@@ -658,6 +683,9 @@ export const STRINGS = {
     specials_artifact: "อาร์ติแฟกต์",
     specials_emblem: "เอมเบล็ม",
     specials_none: "ไม่มีไอเทมพิเศษที่มีจำนวนตัวอย่างเพียงพอ",
+    search_carry: "ค้นหาแคร์รี่",
+    search_none : "ไม่พบผลลัพธ์",
+
   },
 };
 

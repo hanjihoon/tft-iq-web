@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { parseSkillDesc, parseTraitDesc } from "./skill-parser";
 
 import { STRINGS, fmt } from "./i18n";
@@ -20,6 +20,41 @@ const LangContext = createContext({ lang: "ko_kr", changeLang: () => {} });
 
 let specialsListCache = null;
 const specialsDetailCache = {};
+
+// 코스트별 테두리 색 (TFT 표준)
+const COST_COLORS = {
+  1: "#808080",  // 회색
+  2: "#11b288",  // 초록 (연두)
+  3: "#207ac7",  // 파랑
+  4: "#c440da",  // 보라 (자주)
+  5: "#ffb93b",  // 금색 (노랑)
+};
+
+const STYLE_COLORS = {
+  1: "#b06a3b",  // 브론즈
+  2: "#9fb4c4",  // 실버(구)
+  3: "#9fb4c4",  // 실버
+  5: "#ffc93c",  // 골드
+  6: "#6ad4e0",  // 프리즘 (청록)
+};
+
+
+const T = {
+  bg: "#0B0918", bg2: "#130F26", card1: "#1C1638", card2: "#251C49",
+  line: "rgba(139,108,255,0.22)", text: "#F0ECFF", muted: "#9A8FC2",
+  violet: "#8B6CFF", gold: "#F6C652", teal: "#3DE0A8", red: "#FF6585",
+  fontDisplay: "'Space Grotesk', system-ui, sans-serif",
+  fontKR: "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif",
+};
+const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+
+
+// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
+const UNIT_ICON_OVERRIDES = {
+  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
+};
+
+const initial = (name) => name?.trim()?.[0] ?? "?";
 
 function LangSelector() {
   const { lang, changeLang } = useContext(LangContext);
@@ -72,22 +107,17 @@ function resolveDeckIcon(label, unitInfo, traitInfo) {
   return null;
 }
 
-// 코스트별 테두리 색 (TFT 표준)
-const COST_COLORS = {
-  1: "#808080",  // 회색
-  2: "#11b288",  // 초록 (연두)
-  3: "#207ac7",  // 파랑
-  4: "#c440da",  // 보라 (자주)
-  5: "#ffb93b",  // 금색 (노랑)
-};
+/** ms 이후에만 true. 짧은 로딩에서 스켈레톤이 깜빡이는 걸 막는다. */
+function useDelayed(active, ms) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!active) { setOn(false); return; }
+    const id = setTimeout(() => setOn(true), ms);
+    return () => clearTimeout(id);
+  }, [active, ms]);
+  return on;
+}
 
-const STYLE_COLORS = {
-  1: "#b06a3b",  // 브론즈
-  2: "#9fb4c4",  // 실버(구)
-  3: "#9fb4c4",  // 실버
-  5: "#ffc93c",  // 골드
-  6: "#6ad4e0",  // 프리즘 (청록)
-};
 
 // 개수 → style (breakpoints에서 해당 구간)
 function traitStyle(count, breakpoints) {
@@ -146,20 +176,42 @@ function detectLang() {
   return "en_us";  // 지원 언어 없으면 영어
 }
 
-const T = {
-  bg: "#0B0918", bg2: "#130F26", card1: "#1C1638", card2: "#251C49",
-  line: "rgba(139,108,255,0.22)", text: "#F0ECFF", muted: "#9A8FC2",
-  violet: "#8B6CFF", gold: "#F6C652", teal: "#3DE0A8", red: "#FF6585",
-  fontDisplay: "'Space Grotesk', system-ui, sans-serif",
-  fontKR: "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif",
-};
-const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div style={{ position: "relative", marginBottom: 14 }}>
+      <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+        fontSize: 13, color: T.muted, pointerEvents: "none" }}>🔍</span>
 
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          padding: "11px 34px 11px 34px",
+          borderRadius: 12, border: `1px solid ${T.line}`,
+          background: "rgba(255,255,255,0.04)", color: T.text,
+          fontFamily: T.fontKR,
+          fontSize: 16,            // 16px 미만이면 iOS가 입력 시 화면을 확대해버린다
+          outline: "none",
+          transition: "border-color .15s ease",
+        }}
+        onFocus={(e) => (e.currentTarget.style.borderColor = T.gold)}
+        onBlur={(e) => (e.currentTarget.style.borderColor = T.line)}
+      />
 
-// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
-const UNIT_ICON_OVERRIDES = {
-  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
-};
+      {value && (
+        <button onClick={() => onChange("")} aria-label="clear"
+          style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+            appearance: "none", border: "none", background: "transparent",
+            color: T.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "4px 8px" }}>
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 
 export default function App() {
   const [unitInfo, setUnitInfo] = useState({});   // 전체: {id: {cost, traits, ability}}
@@ -211,7 +263,6 @@ export default function App() {
   );
 }
 
-const initial = (name) => name?.trim()?.[0] ?? "?";
 
 // 오답/문제 제보 (원클릭)
 async function reportPuzzle(id) {
@@ -232,7 +283,7 @@ function unitIcon(id) {
   const m = low.match(/^tft(\d+)_/);
   if (!m) return null;
   const fileBase = UNIT_ICON_OVERRIDES[low] || low;
-  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${fileBase}_square.tft_set${m[1]}.png`;
+  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${fileBase}_square.png`;
 }
 
 function UnitDetailModal({ unitId, onClose }) {
@@ -726,9 +777,7 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
                 style={{ width: "100%", appearance: "none", cursor: "pointer", textAlign: "left",
                   border: "none", background: "transparent", padding: "20px 22px", color: T.text,
                   transition: "transform .12s" }}
-                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}>
+                className="pressable">
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontSize: 26 }}>{m.emoji}</span>
                   <div>
@@ -759,7 +808,8 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
             borderRadius: 12, border: `1px solid ${T.teal}`,
             background: "rgba(61,224,168,0.1)", color: T.teal,
             fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
-            display: "flex", alignItems: "center", gap: 6 }}>
+            display: "flex", alignItems: "center", gap: 6 }} 
+          className="pressable">
           {t.home_meta}
         </button>
 
@@ -769,7 +819,8 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
             borderRadius: 12, border: `1px solid ${T.red}`,
             background: "rgba(255,101,133,0.1)", color: T.red,
             fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
-            display: "flex", alignItems: "center", gap: 6 }}>
+            display: "flex", alignItems: "center", gap: 6 }}
+          className="pressable">
           💎 {t.home_specials ?? "특수 아이템"}
         </button>
 
@@ -778,7 +829,8 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
             borderRadius: 12, border: `1px solid ${T.gold}`,
             background: "rgba(246,198,82,0.1)", color: T.gold,
             fontFamily: T.fontKR, fontWeight: 600, fontSize: 13, padding: "10px 18px",
-            display: "flex", alignItems: "center", gap: 6 }}>
+            display: "flex", alignItems: "center", gap: 6 }}
+          className="pressable">
           {t.home_stats}
         </button>
       </div>
@@ -1066,11 +1118,22 @@ function SpecialsScreen({ onBack }) {
   const unitInfo = useContext(UnitInfoContext);
   const itemInfo = useContext(ItemInfoContext);
 
+  const [query, setQuery] = useState("");
+
   const [carryIds, setCarryIds] = useState(specialsListCache ?? []);
   const [selected, setSelected] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(specialsListCache === null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const filtered = useMemo(() => {
+  const q = query.trim().toLowerCase();
+  if (!q) return carryIds;
+  return carryIds.filter((cid) =>
+    (unitInfo[cid]?.name ?? "").toLowerCase().includes(q) ||
+    cid.toLowerCase().includes(q)
+  );
+}, [carryIds, query, unitInfo]);
 
   // 캐리 목록 — 캐시 없을 때만 fetch
   useEffect(() => {
@@ -1125,6 +1188,7 @@ function SpecialsScreen({ onBack }) {
       background: `radial-gradient(120% 80% at 50% -10%, ${T.bg2}, ${T.bg})`,
       color: T.text, fontFamily: T.fontKR, padding: "40px 20px",
     }}>
+      <StyleInject />
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         {/* 헤더 */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
@@ -1186,9 +1250,18 @@ function SpecialsScreen({ onBack }) {
               </div>
             )}
           </div>
+    ) : (
+      <>
+        <SearchInput value={query} onChange={setQuery}
+          placeholder={t.search_carry ?? "캐리 검색"} />
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.muted, padding: "32px 0", fontSize: 13 }}>
+            {t.search_none ?? "검색 결과가 없습니다"}
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))", gap: 10 }}>
-            {carryIds.map((cid) => (
+            {filtered.map((cid) => (
               <button key={cid} onClick={() => selectCarry(cid)}
                 style={{ appearance: "none", cursor: "pointer",
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
@@ -1208,6 +1281,8 @@ function SpecialsScreen({ onBack }) {
             ))}
           </div>
         )}
+      </>
+    )}
       </div>
     </div>
   );
@@ -1303,11 +1378,12 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
 
       {/* 선택지 — reveal이면 각 조합에 평균순위/BEST 배지 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
-        {current.options.map((opt) => {
+        {current.options.map((opt, idx) => {
           let border = T.line, bg = "rgba(255,255,255,0.03)", glow = "none", badge = null;
+          let anim = "none";
           if (reveal) {
-            if (opt.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; glow = `0 0 0 1px ${T.gold}`; badge = "BEST"; }
-            else if (opt.combo === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; }
+            if (opt.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; glow = `0 0 0 1px ${T.gold}`; badge = "BEST"; anim = "rv-glow .45s ease-out both"; }
+            else if (opt.combo === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; anim = "rv-shake .28s ease-in-out";}
           }
           return (
             <button key={opt.combo} disabled={!!reveal}
@@ -1315,13 +1391,15 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
               style={{
                 appearance: "none", cursor: reveal ? "default" : "pointer",
                 borderRadius: 14, border: `1px solid ${border}`, background: bg, boxShadow: glow,
+                animation: anim,
                 padding: "13px 15px", color: T.text,
                 display: "flex", alignItems: "center",
                 justifyContent: reveal ? "space-between" : "center",
-              }}>
+              }}
+              className="pressable">
               {renderComboIcons(opt.items, reveal && opt.is_best)}
               {reveal && (
-                <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, animation: `rv-in .3s ease-out ${0.15 + idx * 0.04}s both`, }}>
                   {badge && <span style={{ fontFamily: T.fontDisplay, fontSize: 10, fontWeight: 700, color: T.gold }}>{badge}</span>}
                   <span style={{ fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700, color: opt.is_best ? T.gold : T.muted }}>
                     {opt.avg_placement?.toFixed(2)}
@@ -1340,7 +1418,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
             {/* 정답/오답 문구 */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
               fontWeight: 800, fontSize: 16, color: reveal.correct ? T.teal : T.red }}>
-              <span style={{ fontFamily: T.fontDisplay }}>{reveal.correct ? t.correct : t.wrong}</span>
+              <span style={{ fontFamily: T.fontDisplay, animation: "rv-in .3s ease-out .3s both",}}>{reveal.correct ? t.correct : t.wrong}</span>
             </div>
 
             {/* 히든픽 */}
@@ -1348,7 +1426,7 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
               <div style={{ marginBottom: 12, padding: "11px 13px", borderRadius: 12,
                 background: "rgba(139,108,255,0.1)", border: `1px solid ${T.line}`,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: T.violet, fontWeight: 700 }}>💎 {t.hidden_pick}  </span>
+                <span style={{ fontSize: 12, color: T.violet, fontWeight: 700, animation: "rv-in .35s ease-out .45s both", }}>💎 {t.hidden_pick}  </span>
                 {renderComboIcons(current.hidden.items, false)}
                 <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 700, color: T.violet }}>
                   {current.hidden.avg?.toFixed(2)}
@@ -1438,16 +1516,18 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
           {current.options.map((opt) => {
             const st = reveal?.stats?.find((s) => s.id === opt.id);
             let border = T.line, bg = "rgba(255,255,255,0.03)";
+            let anim = "none";
             if (reveal) {
-              if (st?.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; }
-              else if (opt.id === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; }
+              if (st?.is_best) { border = T.gold; bg = "rgba(246,198,82,0.12)"; anim = "rv-glow .45s ease-out both"; }
+              else if (opt.id === chosen) { border = T.red; bg = "rgba(255,101,133,0.12)"; anim = "rv-shake .28s ease-in-out"; }
             }
             return (
               <button key={opt.id} disabled={!!reveal} onClick={() => onPick(opt.name, opt.id)}
                 style={{ appearance: "none", cursor: reveal ? "default" : "pointer",
                   borderRadius: 12, border: `1px solid ${border}`, background: bg,
                   padding: "8px 10px", color: T.text, fontFamily: T.fontKR, fontSize: 13, fontWeight: 600,
-                  display: "flex", alignItems: "center", gap: 8 }}>
+                  display: "flex", alignItems: "center", gap: 8 }}
+                className="pressable">
                 {opt.icon && <img src={opt.icon} alt="" width={26} height={26}
                   style={{ borderRadius: 5, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1.5px solid ${costColor(costMap[opt.id]) ?? T.line}` }}
                   onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
@@ -1458,7 +1538,8 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
         </div>
         {reveal ? (
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: reveal.correct ? T.teal : T.red, fontFamily: T.fontDisplay, marginBottom: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: reveal.correct ? T.teal : T.red, 
+            fontFamily: T.fontDisplay, marginBottom: 8, animation: "rv-in .3s ease-out .3s both", }}>
               {reveal.correct ? t.correct : t.wrong}
               <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>{fmt(t.deck_best, {name: unitInfo[best?.id]?.name ?? best?.name,})}</span>
             </div>
@@ -1509,9 +1590,10 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
           const isSel = selected.includes(tr);
           const isAns = answerSet.has(tr);
           let border = T.line, bg = "rgba(255,255,255,0.03)", color = T.text;
+          let anim = "none";
           if (reveal) {
-            if (isAns) { border = T.teal; bg = "rgba(61,224,168,0.12)"; color = T.teal; }       // 정답
-            else if (isSel) { border = T.red; bg = "rgba(255,101,133,0.12)"; color = T.red; }    // 틀리게 고름
+            if (isAns) { border = T.teal; bg = "rgba(61,224,168,0.12)"; color = T.teal; anim = "rv-glow .45s ease-out both"; }       // 정답
+            else if (isSel) { border = T.red; bg = "rgba(255,101,133,0.12)"; color = T.red; anim = "rv-shake .28s ease-in-out"; }    // 틀리게 고름
           } else if (isSel) {
             border = T.violet; bg = "rgba(139,108,255,0.15)"; color = T.violet;                  // 선택 중
           }
@@ -1522,7 +1604,8 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
             <button key={tr} disabled={!!reveal} onClick={() => toggle(tr)}
               style={{ appearance: "none", cursor: reveal ? "default" : "pointer", gap: 8,
                 borderRadius: 999, border: `1.5px solid ${border}`, background: bg, color,
-                padding: "8px 14px", fontFamily: T.fontKR, fontSize: 13, fontWeight: 600 }}>
+                padding: "8px 14px", fontFamily: T.fontKR, fontSize: 13, fontWeight: 600 }}
+              className="pressable">
               {/* 특성 아이콘 */}
               {icon && (
                 <img src={icon} alt="" width={18} height={18}
@@ -1540,7 +1623,7 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
         {reveal ? (
           <div>
             <div style={{ fontWeight: 800, fontSize: 15, color: reveal.correct ? T.teal : T.red,
-              fontFamily: T.fontDisplay, marginBottom: 6 }}>
+              fontFamily: T.fontDisplay, marginBottom: 6, animation: "rv-in .35s ease-out .45s both", }}>
               {reveal.correct ? t.correct : t.wrong}
               <span style={{ color: T.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>
                 {unitInfo[current.unit.id]?.name ?? current.unit.name}: {current.answer.map(a => traitInfo[a]?.name ?? a).join(", ")}
@@ -1556,7 +1639,8 @@ function TraitCard({ current, chosen, reveal, onSubmit, onNext }) {
               borderRadius: 12, border: "none",
               background: selected.length === 0 ? T.line : `linear-gradient(135deg, ${T.violet}, ${T.gold})`,
               color: selected.length === 0 ? T.muted : "#0a0a0f",
-              padding: "13px", fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 15 }}>
+              padding: "13px", fontFamily: T.fontDisplay, fontWeight: 700, fontSize: 15 }}
+            className="pressable">
             {t.trait_submit} {selected.length > 0 ? fmt(t.trait_selected, {n:selected.length}) : ""}
           </button>
         )}
@@ -1656,10 +1740,75 @@ function ReportLink({ puzzleId }) {
   );
 }
 
+/** 회색 블록 하나. shimmer가 위를 훑고 지나간다. */
+function SkBlock({ w, h, r = 8, style }) {
+  return (
+    <div style={{
+      position: "relative", overflow: "hidden",
+      width: w, height: h, borderRadius: r,
+      background: "rgba(255,255,255,0.055)",
+      ...style,
+    }}>
+      <div className="sk-shimmer" style={{
+        position: "absolute", inset: 0,
+        background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)`,
+        animation: "sk-shimmer 1.6s ease-in-out infinite",
+      }} />
+    </div>
+  );
+}
+
 function SkeletonCard() {
   const { t } = useContext(LangContext);
-  return <CardShell><div style={{ margin: "auto", color: T.muted, fontSize: 14 }}>{t.loading}…</div></CardShell>;
+  // 콜드 스타트(2~3초)처럼 유독 길어질 때만 안내 문구를 띄운다.
+  const showSlowHint = useDelayed(true, 2500);
+
+  return (
+    <CardShell>
+      {/* 상단: 패치 배지 + 라벨 자리 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SkBlock w={92} h={24} r={999} />
+        <SkBlock w={54} h={12} />
+      </div>
+
+      {/* 가운데: 육각 주체 + 이름 + 부제 */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
+        marginTop: 18, marginBottom: 6 }}>
+        <div style={{
+          position: "relative", overflow: "hidden",
+          width: 92, height: 92, clipPath: HEX,
+          background: "rgba(255,255,255,0.055)",
+        }}>
+          <div className="sk-shimmer" style={{
+            position: "absolute", inset: 0,
+            background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)`,
+            animation: "sk-shimmer 1.6s ease-in-out infinite",
+          }} />
+        </div>
+        <SkBlock w={132} h={22} style={{ marginTop: 14 }} />
+        <SkBlock w={168} h={13} style={{ marginTop: 10 }} />
+      </div>
+
+      {/* 선택지 자리 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <SkBlock key={i} w="100%" h={52} r={14} />
+        ))}
+      </div>
+
+      {/* 하단: 평소엔 비어 있고, 오래 걸릴 때만 안내 */}
+      <div style={{ marginTop: "auto", paddingTop: 16, textAlign: "center",
+        fontSize: 12, color: T.muted, minHeight: 18 }}>
+        {showSlowHint && (
+          <span style={{ animation: "sk-fadein .3s ease-out both" }}>
+            {t.loading_slow ?? "서버를 깨우는 중입니다…"}
+          </span>
+        )}
+      </div>
+    </CardShell>
+  );
 }
+
 function SolvedCard({ reviewMode, onHome }) {
   const { t } = useContext(LangContext);
   return (
@@ -1704,7 +1853,37 @@ function StyleInject() {
       * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
       html, body, #root { height: 100%; margin: 0; }
       button:focus-visible { outline: 2px solid ${T.violet}; outline-offset: 2px; }
+
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+      /* 정답 카드가 켜지는 순간 — 골드 글로우가 번졌다 잦아든다 */
+      @keyframes rv-glow {
+        0%   { box-shadow: 0 0 0 0 rgba(246,198,82,0); }
+        40%  { box-shadow: 0 0 0 3px rgba(246,198,82,0.35); }
+        100% { box-shadow: 0 0 0 1px rgba(246,198,82,1); }
+      }
+
+      /* 통계·히든픽이 따라 나오는 등장 */
+      @keyframes rv-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: none; }
+      }
+
+      /* 내가 고른 오답이 살짝 흔들린다 (짧게, 한 번만) */
+      @keyframes rv-shake {
+        0%, 100% { transform: translateX(0); }
+        25%      { transform: translateX(-3px); }
+        75%      { transform: translateX(3px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rv-glow, .rv-in, .rv-shake { animation: none !important; }
+      }
+
+      .pressable { transition: transform .1s ease; }
+      .pressable:active:not(:disabled) { transform: scale(0.985); }
+      @media (prefers-reduced-motion: reduce) {
+        .pressable:active { transform: none; }
+      }
     `}</style>
   );
 }
