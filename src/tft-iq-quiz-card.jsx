@@ -614,6 +614,8 @@ function AppMain() {
             picks: o.picks,
             is_best: o.is_best,
             avg_placement: o.avg_placement,
+            top_deck: o.top_deck,
+            top_deck_ratio: o.top_deck_ratio,
           })),
           hidden: p.stats?.hidden_pick
             ? {
@@ -1094,6 +1096,18 @@ function MetaUnit({ unit, onClick }) {
             <span style={{ fontSize: 10, color: T.violet }}>{initial(unitInfo[unit.id]?.name ?? unit.name)}</span>
           )}
         </div>
+
+        {/* 3성을 목표로 만드는 유닛 (리롤 대상) */}
+        {unit.star3_ratio && (
+          <span style={{
+            position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)",
+            fontSize: 8.5, letterSpacing: -0.5, color: T.gold, lineHeight: 1,
+            textShadow: "0 1px 3px rgba(0,0,0,0.95)", whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }} title={`3성 ${unit.star3_ratio}%`}>
+            ★★★
+          </span>
+        )}
       </div>
       {/* 캐리 유닛의 추천 아이템 (있을 때만) */}
       {items.length > 0 && (
@@ -1313,13 +1327,18 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
   const costMap = useContext(CostContext);
   const carryCost = costColor(costMap[current.carry.id]);
   const unitInfo = useContext(UnitInfoContext);
+  const traitInfo = useContext(TraitInfoContext);
 
   const carryName = unitInfo[current.carry.id]?.name ?? current.carry.name;
 
   // 정답/선택 조합 찾기 (reveal 시)
-  const best = reveal?.stats?.options?.find((o) => o.is_best);
-  const yours = reveal?.stats?.options?.find((o) => o.combo === chosen);
-  const hidden = reveal?.stats?.hidden_pick;
+  const best   = current.options?.find((o) => o.is_best);
+  const yours  = current.options?.find((o) => o.combo === chosen);
+  const hidden = current.hidden;
+
+  const topTrait = best?.top_deck?.replace("trait:", "");
+  const topTraitIcon = topTrait ? traitInfo[topTrait]?.icon : null;
+
 
   // 3템 조합 아이콘 렌더 헬퍼
   const renderComboIcons = (items, highlight) => {
@@ -1432,6 +1451,24 @@ function ItemCard({ current, chosen, reveal, onPick, onNext }) {
                   {current.hidden.avg?.toFixed(2)}
                 </span>
                 <span style={{ fontSize: 11, color: T.muted }}>({current.hidden.n})</span>
+              </div>
+            )}
+
+
+            {/* 최빈덱 맥락 — 이 조합이 주로 어떤 덱에서 쓰였는지 */}
+            {topTrait && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap",
+                marginBottom: 12, fontSize: 12, color: T.muted,
+              }}>
+                <span>{t.item_mostly_in}</span>
+                {topTraitIcon && (
+                  <img src={topTraitIcon} alt="" width={16} height={16}
+                    style={{ filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.85 }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                )}
+                <b style={{ color: T.text }}>{traitInfo[topTrait]?.name ?? topTrait}</b>
+                <span>{fmt(t.item_deck_ratio, { r: best.top_deck_ratio })}</span>
               </div>
             )}
 
