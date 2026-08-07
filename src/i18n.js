@@ -88,6 +88,11 @@ export const STRINGS = {
     search_carry: "캐리 검색",
     search_none :"검색 결과가 없습니다",
 
+    home_source_title: "한국 서버 Top 1500 데이터",
+    home_source_desc: "모든 정답은 한국 상위 1500명의 실제 매치를 집계한 결과입니다. 승률이 아닌 평균 등수(낮을수록 좋음)를 기준으로 하므로, 다른 통계 사이트와 순위가 다를 수 있습니다.",
+    home_feedback: "의견·오류 제보:",
+
+
 
   },
 
@@ -151,6 +156,11 @@ export const STRINGS = {
     search_carry: "Search carry",
     search_none : "No results",
     
+    home_source_title: "Korea Top 1500 Data",
+    home_source_desc: "Every answer comes from real matches played by Korea's top 1500. Rankings are based on average placement (lower is better), not win rate — so they may differ from other stat sites.",
+    home_feedback: "Feedback & bug reports:",
+
+
   },
 
   ja_jp: {
@@ -212,6 +222,10 @@ export const STRINGS = {
     specials_none: "十分なサンプル数の特殊アイテムがありません",
     search_carry: "キャリー検索",
     search_none : "検索結果がありません",
+
+    home_source_title: "韓国サーバー Top 1500 データ",
+    home_source_desc: "すべての正解は韓国上位1500人の実際のマッチを集計した結果です。勝率ではなく平均順位（低いほど良い）を基準にしているため、他の統計サイトとは順位が異なる場合があります。",
+    home_feedback: "ご意見・不具合報告:",
 
   },
 
@@ -275,6 +289,10 @@ export const STRINGS = {
     search_carry: "搜索核心",
     search_none : "没有搜索结果",
 
+    home_source_title: "韩服 Top 1500 数据",
+    home_source_desc: "所有答案均来自韩服前1500名玩家的真实对局统计。排名依据平均名次（越低越好）而非胜率，因此可能与其他统计网站不同。",
+    home_feedback: "反馈与问题报告：",
+
   },
 
   pt_br: {
@@ -336,6 +354,10 @@ export const STRINGS = {
     specials_none: "Nenhum item especial com amostra suficiente",
     search_carry: "Buscar carry",
     search_none : "Nenhum resultado",
+
+    home_source_title: "Dados do Top 1500 da Coreia",
+    home_source_desc: "Todas as respostas vêm de partidas reais dos 1500 melhores jogadores da Coreia. A classificação usa colocação média (menor é melhor), não taxa de vitória — por isso pode diferir de outros sites.",
+    home_feedback: "Feedback e erros:",
 
   },
 
@@ -399,6 +421,11 @@ export const STRINGS = {
     search_carry: "Buscar carry",
     search_none : "Sin resultados",
 
+    home_source_title: "Datos del Top 1500 de Corea",
+    home_source_desc: "Todas las respuestas provienen de partidas reales de los 1500 mejores jugadores de Corea. Se basa en la colocación promedio (menor es mejor), no en la tasa de victorias, por lo que puede diferir de otros sitios.",
+    home_feedback: "Comentarios y errores:",
+
+
   },
 
   fr_fr: {
@@ -460,6 +487,10 @@ export const STRINGS = {
     specials_none: "Aucun objet spécial avec un échantillon suffisant",
     search_carry: "Rechercher un carry",
     search_none : "Aucun résultat",
+
+    home_source_title: "Données du Top 1500 coréen",
+    home_source_desc: "Toutes les réponses proviennent de parties réelles des 1500 meilleurs joueurs coréens. Le classement se base sur le placement moyen (plus bas est meilleur), pas le taux de victoire — les résultats peuvent donc différer d'autres sites.",
+    home_feedback: "Retours et erreurs :",
 
   },
 
@@ -523,6 +554,11 @@ export const STRINGS = {
     search_carry: "Carry suchen",
     search_none : "Keine Ergebnisse",
 
+    home_source_title: "Korea Top 1500 Daten",
+  home_source_desc: "Alle Antworten stammen aus echten Spielen der 1500 besten koreanischen Spieler. Grundlage ist die durchschnittliche Platzierung (niedriger ist besser), nicht die Siegrate — daher können Ergebnisse von anderen Statistikseiten abweichen.",
+  home_feedback: "Feedback & Fehlermeldungen:",
+
+
   },
 
   ru_ru: {
@@ -584,6 +620,11 @@ export const STRINGS = {
     specials_none: "Нет особых предметов с достаточной выборкой",
     search_carry: "Поиск кэрри",
     search_none : "Ничего не найдено",
+
+    home_source_title: "Данные Top 1500 Кореи",
+    home_source_desc: "Все ответы основаны на реальных матчах 1500 лучших игроков Кореи. Рейтинг строится на среднем месте (чем ниже, тем лучше), а не на проценте побед — поэтому он может отличаться от других сайтов статистики.",
+    home_feedback: "Отзывы и сообщения об ошибках:",
+
 
   },
 
@@ -647,6 +688,10 @@ export const STRINGS = {
     search_carry: "Tìm carry",
     search_none : "Không có kết quả",
 
+    home_source_title: "Dữ liệu Top 1500 Hàn Quốc",
+    home_source_desc: "Mọi đáp án đều đến từ các trận đấu thực tế của 1500 người chơi hàng đầu Hàn Quốc. Xếp hạng dựa trên thứ hạng trung bình (càng thấp càng tốt), không phải tỷ lệ thắng — nên có thể khác với các trang thống kê khác.",
+    home_feedback: "Góp ý & báo lỗi:",
+
   },
 
   th_th: {
@@ -708,6 +753,10 @@ export const STRINGS = {
     specials_none: "ไม่มีไอเทมพิเศษที่มีจำนวนตัวอย่างเพียงพอ",
     search_carry: "ค้นหาแคร์รี่",
     search_none : "ไม่พบผลลัพธ์",
+
+    home_source_title: "ข้อมูล Top 1500 เกาหลี",
+    home_source_desc: "คำตอบทั้งหมดมาจากแมตช์จริงของผู้เล่นอันดับ 1500 อันดับแรกในเกาหลี จัดอันดับด้วยอันดับเฉลี่ย (ยิ่งต่ำยิ่งดี) ไม่ใช่อัตราชนะ จึงอาจต่างจากเว็บสถิติอื่น",
+    home_feedback: "ความคิดเห็นและรายงานข้อผิดพลาด:",
 
   },
 };

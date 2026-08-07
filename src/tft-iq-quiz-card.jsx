@@ -839,6 +839,29 @@ function Home({ onSelect, onReview, reviewCounts, onStats, onMeta, onSpecials })
       <div style={{ fontSize: 11, color: T.muted, marginTop: 16, textAlign: "center", lineHeight: 1.6 }}>
         {t.home_hint}
       </div>
+
+      {/* 데이터 출처 — 이 앱의 정체성이자, 타 사이트와 순위가 다른 이유 */}
+      <div style={{
+        marginTop: 18, padding: "12px 16px", maxWidth: 360,
+        borderRadius: 12, border: `1px solid ${T.line}`,
+        background: "rgba(255,255,255,0.025)",
+        fontSize: 11.5, color: T.muted, lineHeight: 1.7, textAlign: "center",
+      }}>
+        <div style={{ color: T.gold, fontWeight: 700, marginBottom: 5 }}>
+          🇰🇷 {t.home_source_title}
+        </div>
+        {t.home_source_desc}
+      </div>
+
+      {/* 피드백 창구 */}
+      <div style={{ fontSize: 11, color: T.muted, marginTop: 16, textAlign: "center" }}>
+        {t.home_feedback}{" "}
+        <a href="mailto:tftiq.dev@gmail.com"
+          style={{ color: T.teal, textDecoration: "none", borderBottom: `1px solid ${T.teal}44` }}>
+          tftiq.dev@gmail.com
+        </a>
+      </div>
+
       <div style={{ fontSize: 9.5, color: T.muted, opacity: 0.7, marginTop: 20, textAlign: "center",
         lineHeight: 1.5, maxWidth: 340, padding: "0 8px" }}>
         TFT IQ isn't endorsed by Riot Games and doesn't reflect the views or opinions
