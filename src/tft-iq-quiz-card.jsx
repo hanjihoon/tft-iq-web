@@ -49,9 +49,18 @@ const T = {
 const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
 
 
-// 파일명이 유닛 id와 다른 특수 유닛 (변신폼 등). 폴더는 id, 파일명만 예외.
-const UNIT_ICON_OVERRIDES = {
-  tft17_rhaast: "tft17_kayn_slay", // 라스트 = 케인 변신폼
+/**
+ * 유닛 아이콘 URL.
+ * Set 18: id는 DA_18_Morgana인데 에셋 폴더는 TFT18_Morgana, hud/ 단계가 사라졌다.
+ * 일부 정글 몬스터는 소환사의 협곡 에셋(sru_)을 그대로 쓰거나 파일명이 달라 개별 지정한다.
+ */
+const CDRAGON = "https://raw.communitydragon.org/latest/game/assets/characters";
+
+const ICON_OVERRIDES = {
+  DA_Krug18: `${CDRAGON}/sru_krug/hud/ancientkrug_square.png`,
+  DA_Murkwolf18: `${CDRAGON}/sru_murkwolf/hud/greatermurkwolf_square.png`,
+  DA_CrimsonRaptor18: `${CDRAGON}/tft18_raptor/tft18_crimsonraptor_teamplanner_splash.png`,
+  DA_18_GnarSmall: `${CDRAGON}/tft18_gnar/tft18_gnar_square.png`,
 };
 
 const initial = (name) => name?.trim()?.[0] ?? "?";
@@ -277,14 +286,31 @@ async function reportPuzzle(id) {
   }
 }
 
+/**
+ * 유닛 아이콘 URL.
+ * Set 18은 id가 DA_18_Morgana인데 에셋 폴더는 TFT18_Morgana이고,
+ * 경로에서 hud/ 단계가 사라졌다.
+ */
 function unitIcon(id) {
   if (!id) return null;
-  const low = id.toLowerCase();
-  const m = low.match(/^tft(\d+)_/);
-  if (!m) return null;
-  const fileBase = UNIT_ICON_OVERRIDES[low] || low;
-  return `https://raw.communitydragon.org/latest/game/assets/characters/${low}/hud/${fileBase}_square.png`;
+  if (ICON_OVERRIDES[id]) return ICON_OVERRIDES[id];
+
+  let asset;
+  if (id.startsWith("DA_18_")) {
+    asset = "TFT18_" + id.slice("DA_18_".length);
+  } else if (id.startsWith("DA_")) {
+    asset = "TFT18_" + id.slice(3).replace("18", "");
+  } else {
+    asset = id;
+  }
+
+  // 역할 접미(_AD, _AP)는 매치 데이터의 변형 구분일 뿐 에셋은 하나다
+  asset = asset.replace(/_(AD|AP)$/, "");
+
+  const low = asset.toLowerCase();
+  return `${CDRAGON}/${low}/${low}_square.png`;
 }
+
 
 function UnitDetailModal({ unitId, onClose }) {
   const unitInfo = useContext(UnitInfoContext);
