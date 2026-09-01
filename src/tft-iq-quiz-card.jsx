@@ -516,6 +516,19 @@ function AppMain() {
 
   useEffect(() => { refreshReviewCounts(); }, [refreshReviewCounts]);
 
+  useEffect(() => {
+    // 브라우저 뒤로가기 → 최상위 화면을 닫고 홈으로.
+    // 세 화면은 열 때 pushState로 히스토리에 쌓이므로,
+    // popstate가 오면 그 항목이 빠진 것 = 뒤로가기를 누른 것이다.
+    const onPop = () => {
+      setShowStats(false);
+      setShowMeta(false);
+      setShowSpecials(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // 기록 초기화
   async function handleReset() {
     if (!window.confirm(t.confirm_reset)) return;
@@ -665,7 +678,7 @@ function AppMain() {
   // 통계 화면
   if (!mode && showStats) {
     return (
-      <StatsScreen onBack={() => setShowStats(false)} onReset={handleReset} 
+      <StatsScreen onBack={() => window.history.back()} onReset={handleReset} 
         onReview={(m, grp) => { setShowStats(false); setReviewMode(true); setTab(m);
           setMode(m); setReviewGroup(grp ?? null); setReturnToStats(true); }} 
       />
@@ -674,12 +687,12 @@ function AppMain() {
 
   // 메타 목록 화면
   if (!mode && showMeta) {
-    return <MetaListScreen onBack={() => setShowMeta(false)} />;
+    return <MetaListScreen onBack={() => window.history.back()} />;
   }
 
   // 특수템 화면
   if (!mode && showSpecials) {
-    return <SpecialsScreen onBack={() => setShowSpecials(false)} />;
+    return <SpecialsScreen onBack={() => window.history.back()} />;
   }
 
   // 홈 화면
@@ -689,9 +702,9 @@ function AppMain() {
         reviewCounts={reviewCounts}
         onSelect={(m) => { setReviewMode(false); setTab(m); setMode(m); setReturnToStats(false); }}
         onReview={(m) => { setReviewMode(true); setTab(m); setMode(m); setReviewGroup(null); setReturnToStats(false)}}
-        onStats={() => setShowStats(true)}
-        onMeta={() => setShowMeta(true)}
-        onSpecials={() => setShowSpecials(true)}
+        onStats={() => { window.history.pushState({ screen: "stats" }, ""); setShowStats(true); }}
+        onMeta={() => { window.history.pushState({ screen: "meta" }, ""); setShowMeta(true); }}
+        onSpecials={() => { window.history.pushState({ screen: "specials" }, ""); setShowSpecials(true); }}
       />
     );
   }
@@ -1124,7 +1137,6 @@ function MetaListScreen({ onBack }) {
 }
 
 function MetaUnit({ unit, onClick }) {
-  const icon = unit.icon ?? unitIcon(unit.id); // id로 icon 생성 (저장 안 했으니)
   const items = unit.items ?? [];
   const costMap = useContext(CostContext);
   const cc = costColor(costMap[unit.id]);
@@ -1138,8 +1150,8 @@ function MetaUnit({ unit, onClick }) {
         <div style={{ position: "absolute", inset: 0, clipPath: HEX, overflow: "hidden",
           background: `linear-gradient(160deg, ${T.card2}, ${T.bg})`,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {icon ? (
-            <img src={icon} alt={unit.name} width={40} height={40} style={{ objectFit: "cover" }}
+          {unitInfo[unit.id].icon ? (
+            <img src={unitInfo[unit.id].icon} alt={unit.name} width={40} height={40} style={{ objectFit: "cover" }}
               onError={(e) => { e.currentTarget.style.display = "none"; }} />
           ) : (
             <span style={{ fontSize: 10, color: T.violet }}>{initial(unitInfo[unit.id]?.name ?? unit.name)}</span>
@@ -1581,13 +1593,22 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
           </button>
           {hintOpen && (
             <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6 }}>
-              {synergies.map((s) => (
-                <span key={s.trait} style={{ fontSize: 11, color: T.violet, fontWeight: 600,
-                  border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px",
-                  background: "rgba(139,108,255,0.08)" }}>
-                  {s.trait} {s.count}
-                </span>
-              ))}
+              {synergies.map((s) => {
+                const t = traitInfo[s.trait];
+                return (
+                  <span key={s.trait} style={{ display: "inline-flex", alignItems: "center", gap: 5,
+                    fontSize: 11, color: T.violet, fontWeight: 600,
+                    border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px",
+                    background: "rgba(139,108,255,0.08)" }}>
+                    {t?.icon && (
+                      <img src={t.icon} alt="" width={14} height={14}
+                        style={{ filter: "brightness(0) invert(1)", opacity: 0.85 }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
+                    {t?.name ?? s.trait} {s.count}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1614,7 +1635,7 @@ function DeckCard({ current, chosen, reveal, onPick, onNext }) {
                   padding: "8px 10px", color: T.text, fontFamily: T.fontKR, fontSize: 13, fontWeight: 600,
                   display: "flex", alignItems: "center", gap: 8 }}
                 className="pressable">
-                {opt.icon && <img src={opt.icon} alt="" width={26} height={26}
+                {unitInfo[opt.id].icon && <img src={unitInfo[opt.id].icon} alt="" width={26} height={26}
                   style={{ borderRadius: 5, border: reveal && st?.is_best ? `2px solid ${T.gold}` : `1.5px solid ${costColor(costMap[opt.id]) ?? T.line}` }}
                   onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{unitInfo[opt.id]?.name ?? opt.name}</span>
@@ -1753,7 +1774,7 @@ function UnitHex({ unit, highlight }) {
           background: `linear-gradient(160deg, ${T.card2}, ${T.bg})`,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
           {unit ? (
-            <img src={unit.icon} alt={unit.name} width={size} height={size} style={{ objectFit: "cover" }}
+            <img src={unitInfo[unit.id].icon} alt={unit.name} width={size} height={size} style={{ objectFit: "cover" }}
               onError={(e) => { e.currentTarget.style.display = "none"; }} />
           ) : (
             <span style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 800, color: T.violet }}>?</span>
